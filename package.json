@@ -1,7 +1,7 @@
 {
   "name": "wsop",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.1.1",
   "description": "wsop — 私有化维护客户记录系统 (monorepo)",
   "scripts": {
     "dev": "pnpm --filter wsop-desktop tauri dev",
