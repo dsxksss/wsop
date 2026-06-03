@@ -107,6 +107,8 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
         )}
 
         <div className="text-[11px] text-zinc-500 leading-relaxed bg-zinc-900/40 border border-zinc-800/50 rounded-xl px-3 py-2.5">
+          系统版本：<span className="font-mono-data text-zinc-400">v{import.meta.env.VITE_APP_VERSION}</span>
+          <br />
           默认地址：<span className="font-mono-data text-zinc-400">{API_BASE}</span>
           <br />
           切换后端后会清空数据缓存并按新地址重新加载；若新后端不认当前登录，需重新登录。

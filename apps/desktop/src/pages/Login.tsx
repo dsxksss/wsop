@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Loader2, Lock, User } from "lucide-react";
+import { Loader2, Lock, User, Settings } from "lucide-react";
 import { useAuth } from "../stores/auth";
 import { ApiError } from "../lib/api";
 import { WindowControls } from "../components/layout/WindowControls";
 import { Logo } from "../components/ui/Logo";
+import { SettingsModal } from "../components/ui/SettingsModal";
 
 export default function Login() {
   const status = useAuth((s) => s.status);
@@ -15,6 +16,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (status === "authed") navigate("/", { replace: true });
@@ -39,9 +41,17 @@ export default function Login() {
 
       {/* draggable top bar with window controls */}
       <div
-        className="h-14 shrink-0 z-10 flex items-center justify-end px-3"
+        className="h-14 shrink-0 z-10 flex items-center justify-end px-3 gap-1.5"
         data-tauri-drag-region
       >
+        <button
+          onClick={() => setSettingsOpen(true)}
+          className="w-9 h-9 rounded-lg hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200 flex items-center justify-center transition-all cursor-pointer outline-none active:scale-95"
+          title="设置"
+        >
+          <Settings size={16} />
+        </button>
+        <div className="w-px h-5 bg-zinc-800/70 mx-0.5" />
         <WindowControls />
       </div>
 
@@ -94,9 +104,13 @@ export default function Login() {
             登录
           </button>
 
-          <p className="text-[10px] text-zinc-600">© 2026 wsop · 仅限授权运维人员使用</p>
+          <p className="text-[10px] text-zinc-600">
+            v{import.meta.env.VITE_APP_VERSION} · © 2026 wsop · 仅限授权运维人员使用
+          </p>
         </form>
       </div>
+
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
