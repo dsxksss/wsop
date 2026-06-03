@@ -24,6 +24,18 @@ const SUMMARY_SELECT: &str = "SELECT c.id, c.name, c.short_name, c.industry, c.c
      (SELECT COUNT(*) FROM deployments d WHERE d.customer_id = c.id AND d.status = 'active') AS active_deployments \
      FROM customers c";
 
+async fn fetch_assigned_users(db: &sqlx::SqlitePool, customer_id: &str) -> AppResult<Vec<crate::models::user::UserOptionDto>> {
+    let rows = sqlx::query_as::<_, (String, String)>(
+        "SELECT u.id, u.username FROM users u \
+         JOIN customer_assignments ca ON u.id = ca.user_id \
+         WHERE ca.customer_id = ?"
+    )
+    .bind(customer_id)
+    .fetch_all(db)
+    .await?;
+    Ok(rows.into_iter().map(|(id, username)| crate::models::user::UserOptionDto { id, username }).collect())
+}
+
 #[derive(Deserialize)]
 pub struct ListParams {
     pub q: Option<String>,
@@ -32,31 +44,69 @@ pub struct ListParams {
 /// GET /customers — 列表（含维护汇总），支持 ?q 模糊搜索。任意登录用户可读。
 pub async fn list(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Query(params): Query<ListParams>,
 ) -> AppResult<Json<Vec<CustomerSummaryDto>>> {
-    let rows = match params.q.filter(|s| !s.trim().is_empty()) {
-        Some(q) => {
-            let like = format!("%{}%", q.trim());
-            let sql = format!(
-                "{SUMMARY_SELECT} WHERE c.name LIKE ? OR c.short_name LIKE ? OR c.contact_name LIKE ? \
-                 ORDER BY c.updated_at DESC"
-            );
-            sqlx::query_as::<_, CustomerSummaryRow>(&sql)
-                .bind(&like)
-                .bind(&like)
-                .bind(&like)
-                .fetch_all(&state.db)
-                .await?
+    let has_assigned_scope = user.role_id != "admin" && user.permissions.data_scope == "assigned";
+    let rows = if has_assigned_scope {
+        match params.q.filter(|s| !s.trim().is_empty()) {
+            Some(q) => {
+                let like = format!("%{}%", q.trim());
+                let sql = format!(
+                    "{SUMMARY_SELECT} WHERE c.id IN (SELECT customer_id FROM customer_assignments WHERE user_id = ?) \
+                     AND (c.name LIKE ? OR c.short_name LIKE ? OR c.contact_name LIKE ?) \
+                     ORDER BY c.updated_at DESC"
+                );
+                sqlx::query_as::<_, CustomerSummaryRow>(&sql)
+                    .bind(&user.id)
+                    .bind(&like)
+                    .bind(&like)
+                    .bind(&like)
+                    .fetch_all(&state.db)
+                    .await?
+            }
+            None => {
+                let sql = format!(
+                    "{SUMMARY_SELECT} WHERE c.id IN (SELECT customer_id FROM customer_assignments WHERE user_id = ?) \
+                     ORDER BY c.updated_at DESC"
+                );
+                sqlx::query_as::<_, CustomerSummaryRow>(&sql)
+                    .bind(&user.id)
+                    .fetch_all(&state.db)
+                    .await?
+            }
         }
-        None => {
-            let sql = format!("{SUMMARY_SELECT} ORDER BY c.updated_at DESC");
-            sqlx::query_as::<_, CustomerSummaryRow>(&sql)
-                .fetch_all(&state.db)
-                .await?
+    } else {
+        match params.q.filter(|s| !s.trim().is_empty()) {
+            Some(q) => {
+                let like = format!("%{}%", q.trim());
+                let sql = format!(
+                    "{SUMMARY_SELECT} WHERE c.name LIKE ? OR c.short_name LIKE ? OR c.contact_name LIKE ? \
+                     ORDER BY c.updated_at DESC"
+                );
+                sqlx::query_as::<_, CustomerSummaryRow>(&sql)
+                    .bind(&like)
+                    .bind(&like)
+                    .bind(&like)
+                    .fetch_all(&state.db)
+                    .await?
+            }
+            None => {
+                let sql = format!("{SUMMARY_SELECT} ORDER BY c.updated_at DESC");
+                sqlx::query_as::<_, CustomerSummaryRow>(&sql)
+                    .fetch_all(&state.db)
+                    .await?
+            }
         }
     };
-    Ok(Json(rows.into_iter().map(CustomerSummaryDto::from).collect()))
+
+    let mut dtos = Vec::new();
+    for row in rows {
+        let mut dto = CustomerSummaryDto::from(row);
+        dto.assigned_users = Some(fetch_assigned_users(&state.db, &dto.id).await?);
+        dtos.push(dto);
+    }
+    Ok(Json(dtos))
 }
 
 /// GET /customers/{id} — 详情：客户汇总 + 部署列表。
@@ -65,6 +115,20 @@ pub async fn get(
     user: AuthUser,
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
+    let has_assigned_scope = user.role_id != "admin" && user.permissions.data_scope == "assigned";
+    if has_assigned_scope {
+        let is_assigned: Option<(String,)> = sqlx::query_as(
+            "SELECT customer_id FROM customer_assignments WHERE customer_id = ? AND user_id = ?"
+        )
+        .bind(&id)
+        .bind(&user.id)
+        .fetch_optional(&state.db)
+        .await?;
+        if is_assigned.is_none() {
+            return Err(AppError::Forbidden);
+        }
+    }
+
     let sql = format!("{SUMMARY_SELECT} WHERE c.id = ?");
     let customer = sqlx::query_as::<_, CustomerSummaryRow>(&sql)
         .bind(&id)
@@ -86,18 +150,19 @@ pub async fn get(
     .fetch_all(&state.db)
     .await?;
 
-    // 凭据脱敏：只读用户（viewer）不返回任何密码材料。
-    // 密码既在 wemol_password，也嵌在 connection_info 的 JSON 里，因此两者一并清除，
-    // viewer 仅能看到连接名与用户名。
-    if user.require_write().is_err() {
+    // 凭据脱敏：只读用户（无 write:deployments 且无 write:customers 权限）不返回任何密码材料。
+    if user.require_action("write:deployments").is_err() && user.require_action("write:customers").is_err() {
         for c in &mut remote_connections {
             c.wemol_password = None;
             c.connection_info = None;
         }
     }
 
+    let mut customer_dto = CustomerSummaryDto::from(customer);
+    customer_dto.assigned_users = Some(fetch_assigned_users(&state.db, &id).await?);
+
     Ok(Json(json!({
-        "customer": CustomerSummaryDto::from(customer),
+        "customer": customer_dto,
         "deployments": deployments,
         "remote_connections": remote_connections,
     })))
@@ -113,6 +178,7 @@ pub struct CustomerInput {
     pub contact_email: Option<String>,
     pub address: Option<String>,
     pub notes: Option<String>,
+    pub assigned_user_ids: Option<Vec<String>>,
 }
 
 /// POST /customers — 登记客户（admin / engineer）。
@@ -122,13 +188,14 @@ pub async fn create(
     meta: RequestMeta,
     Json(req): Json<CustomerInput>,
 ) -> AppResult<Json<Value>> {
-    user.require_write()?;
+    user.require_action("write:customers")?;
     if req.name.trim().is_empty() {
         return Err(AppError::BadRequest("客户名不能为空".into()));
     }
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
 
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         "INSERT INTO customers (id, name, short_name, industry, contact_name, contact_phone, \
          contact_email, address, notes, created_by, created_at, updated_at) \
@@ -146,8 +213,19 @@ pub async fn create(
     .bind(&user.id)
     .bind(&now)
     .bind(&now)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+
+    if let Some(user_ids) = &req.assigned_user_ids {
+        for user_id in user_ids {
+            sqlx::query("INSERT INTO customer_assignments (customer_id, user_id) VALUES (?, ?)")
+                .bind(&id)
+                .bind(user_id)
+                .execute(&mut *tx)
+                .await?;
+        }
+    }
+    tx.commit().await?;
 
     audit::record(
         &state.db,
@@ -171,11 +249,25 @@ pub async fn update(
     meta: RequestMeta,
     Json(req): Json<CustomerInput>,
 ) -> AppResult<Json<Value>> {
-    user.require_write()?;
+    user.require_action("write:customers")?;
+    
+    let has_assigned_scope = user.role_id != "admin" && user.permissions.data_scope == "assigned";
+    if has_assigned_scope {
+        let is_assigned: Option<(String,)> = sqlx::query_as(
+            "SELECT customer_id FROM customer_assignments WHERE customer_id = ? AND user_id = ?"
+        )
+        .bind(&id)
+        .bind(&user.id)
+        .fetch_optional(&state.db)
+        .await?;
+        if is_assigned.is_none() {
+            return Err(AppError::Forbidden);
+        }
+    }
+
     if req.name.trim().is_empty() {
         return Err(AppError::BadRequest("客户名不能为空".into()));
     }
-    // 确认存在
     let exists: Option<(String,)> = sqlx::query_as("SELECT id FROM customers WHERE id = ?")
         .bind(&id)
         .fetch_optional(&state.db)
@@ -185,6 +277,7 @@ pub async fn update(
     }
 
     let now = Utc::now().to_rfc3339();
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         "UPDATE customers SET name = ?, short_name = ?, industry = ?, contact_name = ?, \
          contact_phone = ?, contact_email = ?, address = ?, notes = ?, updated_at = ? WHERE id = ?",
@@ -199,8 +292,23 @@ pub async fn update(
     .bind(&req.notes)
     .bind(&now)
     .bind(&id)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+
+    if let Some(user_ids) = &req.assigned_user_ids {
+        sqlx::query("DELETE FROM customer_assignments WHERE customer_id = ?")
+            .bind(&id)
+            .execute(&mut *tx)
+            .await?;
+        for user_id in user_ids {
+            sqlx::query("INSERT INTO customer_assignments (customer_id, user_id) VALUES (?, ?)")
+                .bind(&id)
+                .bind(user_id)
+                .execute(&mut *tx)
+                .await?;
+        }
+    }
+    tx.commit().await?;
 
     audit::record(&state.db, Some(&user.id), "update", "customer", Some(&id), None, &meta).await?;
     fetch_detail(&state, &id).await
@@ -213,7 +321,7 @@ pub async fn delete(
     Path(id): Path<String>,
     meta: RequestMeta,
 ) -> AppResult<Json<Value>> {
-    user.require_admin()?;
+    user.require_action("delete:customers")?;
     let res = sqlx::query("DELETE FROM customers WHERE id = ?")
         .bind(&id)
         .execute(&state.db)
@@ -244,8 +352,12 @@ async fn fetch_detail(state: &AppState, id: &str) -> AppResult<Json<Value>> {
     .bind(id)
     .fetch_all(&state.db)
     .await?;
+    
+    let mut customer_dto = CustomerSummaryDto::from(customer);
+    customer_dto.assigned_users = Some(fetch_assigned_users(&state.db, id).await?);
+
     Ok(Json(json!({
-        "customer": CustomerSummaryDto::from(customer),
+        "customer": customer_dto,
         "deployments": deployments,
         "remote_connections": remote_connections,
     })))
@@ -267,7 +379,7 @@ pub async fn create_remote_connection(
     meta: RequestMeta,
     Json(req): Json<CreateRemoteConnectionInput>,
 ) -> AppResult<Json<Value>> {
-    user.require_write()?;
+    user.require_action("write:deployments")?;
     
     let exists: Option<(String,)> = sqlx::query_as("SELECT id FROM customers WHERE id = ?")
         .bind(&customer_id)
@@ -328,7 +440,7 @@ pub async fn update_remote_connection(
     meta: RequestMeta,
     Json(req): Json<UpdateRemoteConnectionInput>,
 ) -> AppResult<Json<Value>> {
-    user.require_write()?;
+    user.require_action("write:deployments")?;
     
     let conn: Option<(String,)> = sqlx::query_as("SELECT customer_id FROM customer_remote_connections WHERE id = ?")
         .bind(&id)
@@ -374,7 +486,7 @@ pub async fn delete_remote_connection(
     Path(id): Path<String>,
     meta: RequestMeta,
 ) -> AppResult<Json<Value>> {
-    user.require_write()?;
+    user.require_action("write:deployments")?;
     
     let conn: Option<(String,)> = sqlx::query_as("SELECT customer_id FROM customer_remote_connections WHERE id = ?")
         .bind(&id)

@@ -12,3 +12,7 @@ export type { MaintenanceNote } from "./types/MaintenanceNote";
 export type { CustomerFile } from "./types/CustomerFile";
 export type { AuditLog } from "./types/AuditLog";
 export type { CustomerRemoteConnection } from "./types/CustomerRemoteConnection";
+export type { UserOptionDto } from "./types/UserOptionDto";
+export type { RolePermissions } from "./types/RolePermissions";
+export type { RoleDto } from "./types/RoleDto";
+export type { RoleResponseDto } from "./types/RoleResponseDto";

@@ -41,9 +41,28 @@ export default function CustomerDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const role = useAuth((s) => s.user?.role);
-  const canWrite = role === "admin" || role === "engineer";
-  const isAdmin = role === "admin";
+  const user = useAuth((s) => s.user);
+
+  const canEditCustomer = !!user && (user.role === "admin" || user.permissions.actions.includes("write:customers"));
+  const canDeleteCustomer = !!user && (user.role === "admin" || user.permissions.actions.includes("delete:customers"));
+  const canWriteDeployment = !!user && (user.role === "admin" || user.permissions.actions.includes("write:deployments"));
+  const canWriteMaintenance = !!user && (user.role === "admin" || user.permissions.actions.includes("write:maintenance"));
+  const canWriteFiles = !!user && (user.role === "admin" || user.permissions.actions.includes("write:files"));
+
+  const getCanWriteForTab = (currentTab: Tab) => {
+    switch (currentTab) {
+      case "部署":
+        return canWriteDeployment;
+      case "远程连接":
+        return canEditCustomer;
+      case "维护记录":
+        return canWriteMaintenance;
+      case "文件空间":
+        return canWriteFiles;
+      default:
+        return false;
+    }
+  };
 
   const [tab, setTab] = useState<Tab>("概览");
   const [editing, setEditing] = useState(false);
@@ -96,27 +115,27 @@ export default function CustomerDetail() {
             </div>
           </div>
         </div>
-        {canWrite && (
-          <div className="flex items-center gap-2 shrink-0">
-            {createLabel && (
-              <Button icon={<Plus size={13} />} onClick={() => setCreateOpen(true)}>
-                {createLabel}
-              </Button>
-            )}
+        <div className="flex items-center gap-2 shrink-0">
+          {createLabel && getCanWriteForTab(tab) && (
+            <Button icon={<Plus size={13} />} onClick={() => setCreateOpen(true)}>
+              {createLabel}
+            </Button>
+          )}
+          {canEditCustomer && (
             <Button variant="ghost" icon={<Pencil size={13} />} onClick={() => setEditing(true)}>
               编辑
             </Button>
-            {isAdmin && (
-              <Button
-                variant="ghost"
-                icon={<Trash2 size={13} />}
-                onClick={() => setDeleting(true)}
-              >
-                删除
-              </Button>
-            )}
-          </div>
-        )}
+          )}
+          {canDeleteCustomer && (
+            <Button
+              variant="ghost"
+              icon={<Trash2 size={13} />}
+              onClick={() => setDeleting(true)}
+            >
+              删除
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* tabs */}
@@ -144,7 +163,7 @@ export default function CustomerDetail() {
           <DeploymentsTab
             customerId={id}
             deployments={deployments}
-            canWrite={canWrite}
+            canWrite={canWriteDeployment}
             createOpen={createOpen}
             setCreateOpen={setCreateOpen}
           />
@@ -153,7 +172,7 @@ export default function CustomerDetail() {
           <RemoteConnectionTab
             customerId={id}
             connections={query.data.remote_connections}
-            canWrite={canWrite}
+            canWrite={canEditCustomer}
             createOpen={createOpen}
             setCreateOpen={setCreateOpen}
           />
@@ -161,7 +180,7 @@ export default function CustomerDetail() {
         <Tabs.Content value="维护记录" className="outline-none">
           <CustomerMaintenanceTab
             customerId={id}
-            canWrite={canWrite}
+            canWrite={canWriteMaintenance}
             deployments={deployments}
             createOpen={createOpen}
             setCreateOpen={setCreateOpen}
@@ -170,7 +189,7 @@ export default function CustomerDetail() {
         <Tabs.Content value="文件空间" className="outline-none">
           <FilesTab
             customerId={id}
-            canWrite={canWrite}
+            canWrite={canWriteFiles}
             createOpen={createOpen}
             setCreateOpen={setCreateOpen}
           />
@@ -217,6 +236,7 @@ function Row({ label, value }: { label: string; value?: string | null }) {
 }
 
 function Overview({ customer }: { customer: CustomerSummaryDto }) {
+  const userList = customer.assigned_users?.map((u) => u.username).join("、") || "暂无";
   return (
     <div className="card p-6 grid grid-cols-2 md:grid-cols-3 gap-5">
       <Row label="企业名称" value={customer.name} />
@@ -226,6 +246,7 @@ function Overview({ customer }: { customer: CustomerSummaryDto }) {
       <Row label="联系电话" value={customer.contact_phone} />
       <Row label="联系邮箱" value={customer.contact_email} />
       <Row label="地址" value={customer.address} />
+      <Row label="指派运维人员" value={userList} />
       <Row label="登记时间" value={fmtDate(customer.created_at)} />
       <div className="col-span-2 md:col-span-3">
         <Row label="备注" value={customer.notes} />

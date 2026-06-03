@@ -21,6 +21,7 @@ pub struct CustomerFile {
 /// 下载用的内部行（含 storage_key，不对外）。
 #[derive(Debug, FromRow)]
 pub struct FileBlobRow {
+    pub customer_id: String,
     pub storage_key: String,
     pub filename: String,
     pub mime_type: Option<String>,

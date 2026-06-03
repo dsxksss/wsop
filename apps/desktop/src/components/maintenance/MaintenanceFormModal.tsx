@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CustomerSummaryDto, Deployment } from "@wsop/shared";
+import type { CustomerSummaryDto, Deployment, UserOptionDto } from "@wsop/shared";
 import { api, ApiError } from "../../lib/api";
 import { MAINTENANCE_TYPE_OPTIONS } from "../../lib/format";
 import { useAuth } from "../../stores/auth";
@@ -8,6 +8,7 @@ import { Modal } from "../ui/Modal";
 import { Button, Field, Input, Textarea } from "../ui/primitives";
 import { Select } from "../ui/Select";
 import { DatePicker } from "../ui/DatePicker";
+import { AssigneeSelector } from "../ui/AssigneeSelector";
 
 /** 新建维护记录。fixedCustomerId 由客户详情页传入；全局页则展示客户选择。 */
 export function MaintenanceFormModal({
@@ -30,12 +31,18 @@ export function MaintenanceFormModal({
   const [deploymentId, setDeploymentId] = useState("");
   const [content, setContent] = useState("");
   const [maintainedAt, setMaintainedAt] = useState(() => new Date().toISOString().split("T")[0]);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>(() => (myId ? [myId] : []));
   const [error, setError] = useState<string | null>(null);
 
   const customers = useQuery({
     queryKey: ["customers"],
     queryFn: () => api.get<CustomerSummaryDto[]>("/customers"),
     enabled: !fixedCustomerId,
+  });
+
+  const usersQuery = useQuery({
+    queryKey: ["users", "options"],
+    queryFn: () => api.get<UserOptionDto[]>("/users/options"),
   });
 
   const mutation = useMutation({
@@ -45,7 +52,7 @@ export function MaintenanceFormModal({
         title,
         type,
         deployment_id: deploymentId || null,
-        assignee_id: myId ?? null,
+        assignee_ids: assigneeIds,
         content: content || null,
         maintained_at: maintainedAt ? new Date(maintainedAt).toISOString() : null,
       }),
@@ -139,6 +146,19 @@ export function MaintenanceFormModal({
             />
           </Field>
         )}
+        <Field label="指派负责人">
+          {usersQuery.isLoading ? (
+            <div className="text-xs text-zinc-500">加载用户列表中...</div>
+          ) : !usersQuery.data || usersQuery.data.length === 0 ? (
+            <div className="text-xs text-zinc-500">暂无可用运维用户。</div>
+          ) : (
+            <AssigneeSelector
+              users={usersQuery.data}
+              selectedIds={assigneeIds}
+              onChange={setAssigneeIds}
+            />
+          )}
+        </Field>
         <Field label="维护内容">
           <Textarea value={content} onChange={(e) => setContent(e.target.value)} />
         </Field>

@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Send, Trash2 } from "lucide-react";
-import type { MaintenanceNote, MaintenanceRecord } from "@wsop/shared";
+import type { MaintenanceNote, MaintenanceRecord, UserOptionDto } from "@wsop/shared";
 import { api } from "../../lib/api";
 import { fmtDateTime, maintenanceTypeLabel } from "../../lib/format";
 import { Modal } from "../ui/Modal";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { Button, Field, Spinner, StatusBadge, Textarea } from "../ui/primitives";
+import { AssigneeSelector } from "../ui/AssigneeSelector";
 
 interface DetailResponse {
   record: MaintenanceRecord;
@@ -27,6 +28,7 @@ export function MaintenanceDetailModal({
   const qc = useQueryClient();
   const [result, setResult] = useState("");
   const [note, setNote] = useState("");
+  const [assigneeIdsState, setAssigneeIdsState] = useState<string[] | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const query = useQuery({
@@ -40,6 +42,20 @@ export function MaintenanceDetailModal({
     qc.invalidateQueries({ queryKey: ["customers"] });
     qc.invalidateQueries({ queryKey: ["customer"] });
   };
+
+  const usersQuery = useQuery({
+    queryKey: ["users", "options"],
+    queryFn: () => api.get<UserOptionDto[]>("/users/options"),
+    enabled: open,
+  });
+
+  const reassign = useMutation({
+    mutationFn: (newAssigneeIds: string[]) =>
+      api.put(`/maintenance-records/${recordId}`, {
+        assignee_ids: newAssigneeIds,
+      }),
+    onSuccess: refresh,
+  });
 
   const complete = useMutation({
     mutationFn: () =>
@@ -93,9 +109,31 @@ export function MaintenanceDetailModal({
             <StatusBadge status={record.status} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-xs">
+          <div className="grid grid-cols-2 gap-3.5 text-xs items-end">
             <Meta label="类型" value={maintenanceTypeLabel(record.type)} />
             <Meta label="维护时间" value={fmtDateTime(record.maintained_at)} />
+            <div className="col-span-2">
+              <span className="text-[11px] text-zinc-500 block mb-2">负责人</span>
+              {canWrite ? (
+                <AssigneeSelector
+                  users={usersQuery.data ?? []}
+                  selectedIds={assigneeIdsState ?? record.assignees?.map(a => a.id) ?? []}
+                  onChange={(newIds) => {
+                    setAssigneeIdsState(newIds);
+                    reassign.mutate(newIds);
+                  }}
+                />
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {record.assignees?.map((a) => (
+                    <span key={a.id} className="text-xs bg-zinc-800 text-zinc-300 rounded px-2 py-0.5">
+                      {a.username}
+                    </span>
+                  )) ?? <span className="text-xs text-zinc-500">—</span>}
+                  {(record.assignees?.length ?? 0) === 0 && <span className="text-xs text-zinc-500">—</span>}
+                </div>
+              )}
+            </div>
             <Meta label="完成时间" value={record.completed_at ? fmtDateTime(record.completed_at) : "—"} />
             <Meta label="创建时间" value={fmtDateTime(record.created_at)} />
           </div>

@@ -3,4 +3,4 @@
 /**
  * 对外 DTO（去掉密码哈希）。
  */
-export type UserDto = { id: string, username: string, email: string, role: string, is_active: boolean, created_at: string, };
+export type UserDto = { id: string, username: string, email: string, role: string, role_name: string | null, is_active: boolean, created_at: string, };

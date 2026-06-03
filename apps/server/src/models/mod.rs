@@ -4,3 +4,4 @@ pub mod deployment;
 pub mod file;
 pub mod maintenance;
 pub mod user;
+pub mod role;

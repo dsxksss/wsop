@@ -14,7 +14,6 @@ pub struct MaintenanceRecord {
     #[serde(rename = "type")]
     pub r#type: String,
     pub status: String,
-    pub assignee_id: Option<String>,
     pub content: Option<String>,
     pub result: Option<String>,
     pub maintained_at: String,
@@ -22,9 +21,11 @@ pub struct MaintenanceRecord {
     pub created_by: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    #[sqlx(skip)]
+    pub assignees: Option<Vec<crate::models::user::UserOptionDto>>,
 }
 
-/// 列表项：维护记录 + 客户名 + 负责人用户名（便于直接展示）。
+/// 列表项：维护记录 + 客户名 + 负责人（便于直接展示）。
 #[derive(Debug, FromRow, Serialize, TS)]
 #[ts(export, export_to = "../../../packages/shared/types/")]
 pub struct MaintenanceListItem {
@@ -37,11 +38,11 @@ pub struct MaintenanceListItem {
     #[serde(rename = "type")]
     pub r#type: String,
     pub status: String,
-    pub assignee_id: Option<String>,
-    pub assignee_username: Option<String>,
     pub maintained_at: String,
     pub completed_at: Option<String>,
     pub created_at: String,
+    #[sqlx(skip)]
+    pub assignees: Option<Vec<crate::models::user::UserOptionDto>>,
 }
 
 /// 维护跟进备注。

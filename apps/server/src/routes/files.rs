@@ -28,10 +28,23 @@ pub struct ListParams {
 /// GET /customers/{id}/files — 列出文件，可按 ?folder 过滤。任意登录用户可读。
 pub async fn list(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(customer_id): Path<String>,
     Query(params): Query<ListParams>,
 ) -> AppResult<Json<Vec<CustomerFile>>> {
+    let has_assigned_scope = user.role_id != "admin" && user.permissions.data_scope == "assigned";
+    if has_assigned_scope {
+        let is_assigned: Option<(String,)> = sqlx::query_as(
+            "SELECT customer_id FROM customer_assignments WHERE customer_id = ? AND user_id = ?"
+        )
+        .bind(&customer_id)
+        .bind(&user.id)
+        .fetch_optional(&state.db)
+        .await?;
+        if is_assigned.is_none() {
+            return Err(AppError::Forbidden);
+        }
+    }
     let rows = match params.folder.filter(|s| !s.is_empty()) {
         Some(folder) => {
             let sql =
@@ -62,7 +75,21 @@ pub async fn upload(
     meta: RequestMeta,
     mut multipart: Multipart,
 ) -> AppResult<Json<CustomerFile>> {
-    user.require_write()?;
+    user.require_action("write:files")?;
+    
+    let has_assigned_scope = user.role_id != "admin" && user.permissions.data_scope == "assigned";
+    if has_assigned_scope {
+        let is_assigned: Option<(String,)> = sqlx::query_as(
+            "SELECT customer_id FROM customer_assignments WHERE customer_id = ? AND user_id = ?"
+        )
+        .bind(&customer_id)
+        .bind(&user.id)
+        .fetch_optional(&state.db)
+        .await?;
+        if is_assigned.is_none() {
+            return Err(AppError::Forbidden);
+        }
+    }
 
     // 客户必须存在
     let exists: Option<(String,)> = sqlx::query_as("SELECT id FROM customers WHERE id = ?")
@@ -158,16 +185,30 @@ pub async fn upload(
 /// GET /files/{id}/download — 下载文件。任意登录用户可读。
 pub async fn download(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(id): Path<String>,
 ) -> AppResult<Response> {
     let blob = sqlx::query_as::<_, FileBlobRow>(
-        "SELECT storage_key, filename, mime_type FROM customer_files WHERE id = ?",
+        "SELECT customer_id, storage_key, filename, mime_type FROM customer_files WHERE id = ?",
     )
     .bind(&id)
     .fetch_optional(&state.db)
     .await?
     .ok_or(AppError::NotFound)?;
+
+    let has_assigned_scope = user.role_id != "admin" && user.permissions.data_scope == "assigned";
+    if has_assigned_scope {
+        let is_assigned: Option<(String,)> = sqlx::query_as(
+            "SELECT customer_id FROM customer_assignments WHERE customer_id = ? AND user_id = ?"
+        )
+        .bind(&blob.customer_id)
+        .bind(&user.id)
+        .fetch_optional(&state.db)
+        .await?;
+        if is_assigned.is_none() {
+            return Err(AppError::Forbidden);
+        }
+    }
 
     let bytes = state.store.read(&blob.storage_key).await?;
     let mime = blob
@@ -192,14 +233,28 @@ pub async fn delete(
     Path(id): Path<String>,
     meta: RequestMeta,
 ) -> AppResult<Json<Value>> {
-    user.require_write()?;
+    user.require_action("delete:files")?;
     let blob = sqlx::query_as::<_, FileBlobRow>(
-        "SELECT storage_key, filename, mime_type FROM customer_files WHERE id = ?",
+        "SELECT customer_id, storage_key, filename, mime_type FROM customer_files WHERE id = ?",
     )
     .bind(&id)
     .fetch_optional(&state.db)
     .await?
     .ok_or(AppError::NotFound)?;
+
+    let has_assigned_scope = user.role_id != "admin" && user.permissions.data_scope == "assigned";
+    if has_assigned_scope {
+        let is_assigned: Option<(String,)> = sqlx::query_as(
+            "SELECT customer_id FROM customer_assignments WHERE customer_id = ? AND user_id = ?"
+        )
+        .bind(&blob.customer_id)
+        .bind(&user.id)
+        .fetch_optional(&state.db)
+        .await?;
+        if is_assigned.is_none() {
+            return Err(AppError::Forbidden);
+        }
+    }
 
     sqlx::query("DELETE FROM customer_files WHERE id = ?")
         .bind(&id)

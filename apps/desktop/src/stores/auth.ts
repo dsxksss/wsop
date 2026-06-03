@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import { load, type Store } from "@tauri-apps/plugin-store";
 import { api, setAuthToken } from "../lib/api";
+import type { RolePermissions } from "@wsop/shared";
 
-export type Role = "admin" | "engineer" | "viewer";
 export interface AuthUser {
   id: string;
   username: string;
-  role: Role;
+  role: string;
+  permissions: RolePermissions;
 }
 
 type Status = "loading" | "authed" | "anon";

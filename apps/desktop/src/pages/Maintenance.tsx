@@ -11,8 +11,8 @@ import { MaintenanceFormModal } from "../components/maintenance/MaintenanceFormM
 import { MaintenanceDetailModal } from "../components/maintenance/MaintenanceDetailModal";
 
 export default function Maintenance() {
-  const role = useAuth((s) => s.user?.role);
-  const canWrite = role === "admin" || role === "engineer";
+  const user = useAuth((s) => s.user);
+  const canWrite = !!user && (user.role === "admin" || user.permissions.actions.includes("write:maintenance"));
 
   const [status, setStatus] = useState("");
   const [type, setType] = useState("");
@@ -100,7 +100,7 @@ export default function Maintenance() {
                     <StatusBadge status={m.status} />
                   </td>
                   <td className="px-4 py-3 text-zinc-400 hidden lg:table-cell">
-                    {m.assignee_username ?? "—"}
+                    {m.assignees?.map((a) => a.username).join("、") || "—"}
                   </td>
                   <td className="px-4 py-3 text-right text-zinc-400 font-mono-data">
                     {fmtDate(m.maintained_at)}

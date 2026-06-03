@@ -6,6 +6,7 @@ pub mod files;
 pub mod health;
 pub mod maintenance;
 pub mod users;
+pub mod roles;
 
 use axum::{
     routing::{get, patch, post, put},
@@ -20,6 +21,9 @@ pub fn router(state: AppState) -> Router {
         .route("/health", get(health::health))
         .route("/auth/login", post(auth::login))
         .route("/auth/me", get(auth::me))
+        .route("/roles", get(roles::list).post(roles::create))
+        .route("/roles/{id}", put(roles::update).delete(roles::delete))
+        .route("/users/options", get(users::options))
         .route("/users", get(users::list).post(users::create))
         .route("/users/{id}", patch(users::update).delete(users::delete))
         .route("/customers", get(customers::list).post(customers::create))

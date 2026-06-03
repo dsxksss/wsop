@@ -7,6 +7,7 @@ import Customers from "./pages/Customers";
 import CustomerDetail from "./pages/CustomerDetail";
 import Maintenance from "./pages/Maintenance";
 import Users from "./pages/Users";
+import Roles from "./pages/Roles";
 import Audit from "./pages/Audit";
 import { useAuth } from "./stores/auth";
 
@@ -31,10 +32,12 @@ function ProtectedShell() {
   return <AppShell />;
 }
 
-/** 仅管理员可进入；否则回到仪表盘。 */
-function AdminRoute() {
+/** 根据页面权限控制路由进入；否则回到仪表盘。 */
+function PermissionRoute({ page }: { page: string }) {
   const user = useAuth((s) => s.user);
-  if (user?.role !== "admin") return <Navigate to="/" replace />;
+  if (!user || (user.role !== "admin" && !user.permissions.view_pages.includes(page))) {
+    return <Navigate to="/" replace />;
+  }
   return <Outlet />;
 }
 
@@ -49,11 +52,16 @@ export const router = createHashRouter([
       { path: "customers/:id", element: <CustomerDetail /> },
       { path: "maintenance", element: <Maintenance /> },
       {
-        element: <AdminRoute />,
-        children: [
-          { path: "users", element: <Users /> },
-          { path: "audit", element: <Audit /> },
-        ],
+        element: <PermissionRoute page="users" />,
+        children: [{ path: "users", element: <Users /> }],
+      },
+      {
+        element: <PermissionRoute page="roles" />,
+        children: [{ path: "roles", element: <Roles /> }],
+      },
+      {
+        element: <PermissionRoute page="audit" />,
+        children: [{ path: "audit", element: <Audit /> }],
       },
     ],
   },

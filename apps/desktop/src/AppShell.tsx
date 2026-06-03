@@ -10,6 +10,7 @@ import {
   Sun,
   Users2,
   Building2,
+  Shield,
   type LucideIcon,
 } from "lucide-react";
 import { AppLayout, useSidebar } from "./components/layout/AppLayout";
@@ -17,23 +18,23 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { WindowControls } from "./components/layout/WindowControls";
 import { Logo } from "./components/ui/Logo";
 import { SettingsModal } from "./components/ui/SettingsModal";
-import { useAuth, type Role } from "./stores/auth";
+import { useAuth } from "./stores/auth";
 import { useSettings } from "./stores/settings";
 
 interface NavEntry {
   path: string;
   label: string;
   icon: LucideIcon;
-  /** 限定可见的角色；省略表示所有登录用户可见。 */
-  roles?: Role[];
+  page?: string;
 }
 
 const NAV: NavEntry[] = [
-  { path: "/", label: "仪表盘", icon: LayoutDashboard },
-  { path: "/customers", label: "客户", icon: Building2 },
-  { path: "/maintenance", label: "维护记录", icon: Activity },
-  { path: "/users", label: "用户管理", icon: Users2, roles: ["admin"] },
-  { path: "/audit", label: "审计日志", icon: ScrollText, roles: ["admin"] },
+  { path: "/", label: "仪表盘", icon: LayoutDashboard, page: "dashboard" },
+  { path: "/customers", label: "客户", icon: Building2, page: "customers" },
+  { path: "/maintenance", label: "维护记录", icon: Activity, page: "maintenance" },
+  { path: "/users", label: "用户管理", icon: Users2, page: "users" },
+  { path: "/roles", label: "角色管理", icon: Shield, page: "roles" },
+  { path: "/audit", label: "审计日志", icon: ScrollText, page: "audit" },
 ];
 
 function titleFor(pathname: string): string {
@@ -69,7 +70,12 @@ export default function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const items = useMemo(
-    () => NAV.filter((n) => !n.roles || (user && n.roles.includes(user.role))),
+    () =>
+      NAV.filter(
+        (n) =>
+          !n.page ||
+          (user && (user.role === "admin" || user.permissions.view_pages.includes(n.page))),
+      ),
     [user],
   );
 
@@ -174,7 +180,7 @@ function UserFooter() {
   );
 }
 
-function roleLabel(role?: Role): string {
+function roleLabel(role?: string): string {
   switch (role) {
     case "admin":
       return "管理员";
@@ -183,6 +189,6 @@ function roleLabel(role?: Role): string {
     case "viewer":
       return "查看者";
     default:
-      return "";
+      return role ?? "";
   }
 }

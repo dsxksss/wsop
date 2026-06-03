@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Plus, Trash2 } from "lucide-react";
-import type { UserDto } from "@wsop/shared";
+import type { UserDto, RoleResponseDto } from "@wsop/shared";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../stores/auth";
 import { Button, EmptyState, Field, Input, Spinner } from "../components/ui/primitives";
@@ -10,11 +10,7 @@ import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { Select } from "../components/ui/Select";
 import { Switch } from "../components/ui/Switch";
 
-const ROLE_OPTIONS = [
-  { value: "admin", label: "管理员" },
-  { value: "engineer", label: "工程师" },
-  { value: "viewer", label: "查看者" },
-];
+
 
 export default function Users() {
   const qc = useQueryClient();
@@ -24,6 +20,8 @@ export default function Users() {
   const [deletingUser, setDeletingUser] = useState<UserDto | null>(null);
 
   const query = useQuery({ queryKey: ["users"], queryFn: () => api.get<UserDto[]>("/users") });
+  const rolesQuery = useQuery({ queryKey: ["roles"], queryFn: () => api.get<RoleResponseDto[]>("/roles") });
+  const roleOptions = rolesQuery.data?.map((r) => ({ value: r.id, label: r.name })) ?? [];
 
   const patch = useMutation({
     mutationFn: (args: { id: string; body: Record<string, unknown> }) =>
@@ -76,11 +74,11 @@ export default function Users() {
                   <td className="px-4 py-3 text-zinc-400 hidden md:table-cell">{u.email}</td>
                   <td className="px-4 py-3">
                     <Select
-                      className="w-24"
+                      className="w-32"
                       value={u.role}
                       disabled={u.id === myId}
                       onChange={(v) => patch.mutate({ id: u.id, body: { role: v } })}
-                      options={ROLE_OPTIONS}
+                      options={roleOptions}
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -122,7 +120,7 @@ export default function Users() {
         )}
       </div>
 
-      {creating && <CreateUserModal onClose={() => setCreating(false)} />}
+      {creating && <CreateUserModal roleOptions={roleOptions} onClose={() => setCreating(false)} />}
       {deletingUser && (
         <ConfirmModal
           open
@@ -194,12 +192,18 @@ function ResetPasswordModal({
   );
 }
 
-function CreateUserModal({ onClose }: { onClose: () => void }) {
+function CreateUserModal({
+  roleOptions,
+  onClose,
+}: {
+  roleOptions: Array<{ value: string; label: string }>;
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("engineer");
+  const [role, setRole] = useState(roleOptions[0]?.value ?? "engineer");
   const [error, setError] = useState<string | null>(null);
 
   const create = useMutation({
@@ -250,7 +254,7 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
           />
         </Field>
         <Field label="角色">
-          <Select className="w-full" value={role} onChange={setRole} options={ROLE_OPTIONS} />
+          <Select className="w-full" value={role} onChange={setRole} options={roleOptions} />
         </Field>
         {error && (
           <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">

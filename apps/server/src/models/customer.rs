@@ -44,6 +44,8 @@ pub struct CustomerSummaryDto {
     /// 在用部署实例数。
     #[ts(type = "number")]
     pub active_deployments: i64,
+    /// 指派的运维人员。
+    pub assigned_users: Option<Vec<crate::models::user::UserOptionDto>>,
 }
 
 impl From<CustomerSummaryRow> for CustomerSummaryDto {
@@ -63,6 +65,7 @@ impl From<CustomerSummaryRow> for CustomerSummaryDto {
             maintenance_count: c.maintenance_count,
             last_maintained_at: c.last_maintained_at,
             active_deployments: c.active_deployments,
+            assigned_users: None,
         }
     }
 }

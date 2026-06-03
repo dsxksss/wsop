@@ -48,7 +48,7 @@ export function CustomerMaintenanceTab({
                 <span className="text-sm text-white font-medium truncate flex-1">{m.title}</span>
                 <Badge tone="blue">{maintenanceTypeLabel(m.type)}</Badge>
                 <span className="text-[11px] text-zinc-500 hidden sm:block">
-                  {m.assignee_username ?? "—"}
+                  {m.assignees?.map((a) => a.username).join("、") || "—"}
                 </span>
                 <span className="text-[11px] text-zinc-500 font-mono-data shrink-0">
                   {fmtDate(m.maintained_at)}

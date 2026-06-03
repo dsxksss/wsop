@@ -11,8 +11,8 @@ import { CustomerFormModal } from "../components/customers/CustomerFormModal";
 
 export default function Customers() {
   const navigate = useNavigate();
-  const role = useAuth((s) => s.user?.role);
-  const canWrite = role === "admin" || role === "engineer";
+  const user = useAuth((s) => s.user);
+  const canWrite = !!user && (user.role === "admin" || user.permissions.actions.includes("write:customers"));
 
   const [q, setQ] = useState("");
   const [creating, setCreating] = useState(false);

@@ -16,9 +16,23 @@ use crate::state::AppState;
 /// GET /customers/{id}/deployments — 列出某客户的部署实例。
 pub async fn list(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(customer_id): Path<String>,
 ) -> AppResult<Json<Vec<Deployment>>> {
+    let has_assigned_scope = user.role_id != "admin" && user.permissions.data_scope == "assigned";
+    if has_assigned_scope {
+        let is_assigned: Option<(String,)> = sqlx::query_as(
+            "SELECT customer_id FROM customer_assignments WHERE customer_id = ? AND user_id = ?"
+        )
+        .bind(&customer_id)
+        .bind(&user.id)
+        .fetch_optional(&state.db)
+        .await?;
+        if is_assigned.is_none() {
+            return Err(AppError::Forbidden);
+        }
+    }
+
     let rows = sqlx::query_as::<_, Deployment>(
         "SELECT * FROM deployments WHERE customer_id = ? ORDER BY created_at DESC",
     )
@@ -59,7 +73,22 @@ pub async fn create(
     meta: RequestMeta,
     Json(req): Json<DeploymentInput>,
 ) -> AppResult<Json<Deployment>> {
-    user.require_write()?;
+    user.require_action("write:deployments")?;
+    
+    let has_assigned_scope = user.role_id != "admin" && user.permissions.data_scope == "assigned";
+    if has_assigned_scope {
+        let is_assigned: Option<(String,)> = sqlx::query_as(
+            "SELECT customer_id FROM customer_assignments WHERE customer_id = ? AND user_id = ?"
+        )
+        .bind(&customer_id)
+        .bind(&user.id)
+        .fetch_optional(&state.db)
+        .await?;
+        if is_assigned.is_none() {
+            return Err(AppError::Forbidden);
+        }
+    }
+
     if req.product.trim().is_empty() {
         return Err(AppError::BadRequest("产品名不能为空".into()));
     }
@@ -133,12 +162,26 @@ pub async fn update(
     meta: RequestMeta,
     Json(req): Json<DeploymentInput>,
 ) -> AppResult<Json<Deployment>> {
-    user.require_write()?;
-    sqlx::query_as::<_, Deployment>("SELECT * FROM deployments WHERE id = ?")
+    user.require_action("write:deployments")?;
+    let dep = sqlx::query_as::<_, Deployment>("SELECT * FROM deployments WHERE id = ?")
         .bind(&id)
         .fetch_optional(&state.db)
         .await?
         .ok_or(AppError::NotFound)?;
+
+    let has_assigned_scope = user.role_id != "admin" && user.permissions.data_scope == "assigned";
+    if has_assigned_scope {
+        let is_assigned: Option<(String,)> = sqlx::query_as(
+            "SELECT customer_id FROM customer_assignments WHERE customer_id = ? AND user_id = ?"
+        )
+        .bind(&dep.customer_id)
+        .bind(&user.id)
+        .fetch_optional(&state.db)
+        .await?;
+        if is_assigned.is_none() {
+            return Err(AppError::Forbidden);
+        }
+    }
 
     let status = req.status.as_deref().unwrap_or("active");
     if !valid_status(status) {
@@ -187,7 +230,27 @@ pub async fn delete(
     Path(id): Path<String>,
     meta: RequestMeta,
 ) -> AppResult<Json<Value>> {
-    user.require_write()?;
+    user.require_action("delete:deployments")?;
+    let dep = sqlx::query_as::<_, Deployment>("SELECT * FROM deployments WHERE id = ?")
+        .bind(&id)
+        .fetch_optional(&state.db)
+        .await?
+        .ok_or(AppError::NotFound)?;
+
+    let has_assigned_scope = user.role_id != "admin" && user.permissions.data_scope == "assigned";
+    if has_assigned_scope {
+        let is_assigned: Option<(String,)> = sqlx::query_as(
+            "SELECT customer_id FROM customer_assignments WHERE customer_id = ? AND user_id = ?"
+        )
+        .bind(&dep.customer_id)
+        .bind(&user.id)
+        .fetch_optional(&state.db)
+        .await?;
+        if is_assigned.is_none() {
+            return Err(AppError::Forbidden);
+        }
+    }
+
     let res = sqlx::query("DELETE FROM deployments WHERE id = ?")
         .bind(&id)
         .execute(&state.db)

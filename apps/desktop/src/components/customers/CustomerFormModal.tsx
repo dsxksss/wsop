@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { CustomerSummaryDto } from "@wsop/shared";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { CustomerSummaryDto, UserOptionDto } from "@wsop/shared";
 import { api, ApiError } from "../../lib/api";
 import { Modal } from "../ui/Modal";
 import { Button, Field, Input, Textarea } from "../ui/primitives";
+import { AssigneeSelector } from "../ui/AssigneeSelector";
 
 interface FormState {
   name: string;
@@ -42,9 +43,19 @@ export function CustomerFormModal({
 }) {
   const qc = useQueryClient();
   const [form, setForm] = useState<FormState>(() => toForm(initial));
+  const [assignedUserIds, setAssignedUserIds] = useState<string[]>(
+    () => initial?.assigned_users?.map((u) => u.id) ?? [],
+  );
   const [error, setError] = useState<string | null>(null);
 
   const set = (k: keyof FormState, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const usersQuery = useQuery({
+    queryKey: ["users", "options"],
+    queryFn: () => api.get<UserOptionDto[]>("/users/options"),
+  });
+
+
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -57,6 +68,7 @@ export function CustomerFormModal({
         contact_email: form.contact_email || null,
         address: form.address || null,
         notes: form.notes || null,
+        assigned_user_ids: assignedUserIds,
       };
       const res = initial
         ? await api.put<{ customer: CustomerSummaryDto }>(`/customers/${initial.id}`, body)
@@ -135,6 +147,20 @@ export function CustomerFormModal({
         </Field>
         <Field label="备注">
           <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} />
+        </Field>
+        <Field label="指派运维人员">
+          {usersQuery.isLoading ? (
+            <div className="text-xs text-zinc-500">加载用户列表中...</div>
+          ) : !usersQuery.data || usersQuery.data.length === 0 ? (
+            <div className="text-xs text-zinc-500">暂无可用运维用户。</div>
+          ) : (
+            <AssigneeSelector
+              users={usersQuery.data}
+              selectedIds={assignedUserIds}
+              onChange={setAssignedUserIds}
+              placeholder="选择运维人员…"
+            />
+          )}
         </Field>
         {error && (
           <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">

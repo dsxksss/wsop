@@ -136,7 +136,7 @@ export function OperationTimelineTab({
         icon: Wrench,
         tone: "amber",
         title: `发起维护「${m.title}」`,
-        actor: m.assignee_username,
+        actor: m.assignees?.map((a) => a.username).join("、") || null,
         badge: { label: maintenanceTypeLabel(m.type), tone: "blue" },
       });
       if (m.status === "done" && m.completed_at) {
@@ -147,7 +147,7 @@ export function OperationTimelineTab({
           icon: CheckCircle2,
           tone: "emerald",
           title: `完成维护「${m.title}」`,
-          actor: m.assignee_username,
+          actor: m.assignees?.map((a) => a.username).join("、") || null,
           badge: { label: "已完成", tone: "emerald" },
         });
       }

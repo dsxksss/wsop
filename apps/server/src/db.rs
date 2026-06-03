@@ -46,8 +46,20 @@ pub async fn connect(database_url: &str) -> AppResult<SqlitePool> {
 
 /// 启动时执行 ./migrations 下的全部迁移（编译期内嵌）。
 pub async fn migrate(pool: &SqlitePool) -> AppResult<()> {
-    sqlx::migrate!("./migrations")
-        .run(pool)
+    let mut conn = pool.acquire().await.map_err(|e| AppError::Internal(format!("acquire conn: {e}")))?;
+    
+    sqlx::query("PRAGMA foreign_keys = OFF;")
+        .execute(&mut *conn)
         .await
-        .map_err(|e| AppError::Internal(format!("migrate: {e}")))
+        .map_err(|e| AppError::Internal(format!("disable foreign keys: {e}")))?;
+
+    let res = sqlx::migrate!("./migrations")
+        .run(&mut *conn)
+        .await;
+
+    let _ = sqlx::query("PRAGMA foreign_keys = ON;")
+        .execute(&mut *conn)
+        .await;
+
+    res.map_err(|e| AppError::Internal(format!("migrate: {e}")))
 }
