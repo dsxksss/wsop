@@ -5,6 +5,7 @@ mod db;
 mod error;
 mod models;
 mod routes;
+mod seed_demo;
 mod state;
 mod storage;
 
@@ -41,6 +42,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         store,
     };
     seed_admin(&state).await?;
+
+    // 开发期演示数据（仅在 SEED_DEMO 为真且无客户时填充）。
+    if seed_demo::enabled() {
+        if let Err(e) = seed_demo::seed_demo(&state).await {
+            tracing::warn!("SEED_DEMO failed: {e}");
+        }
+    }
 
     let app = routes::router(state.clone())
         .layer(DefaultBodyLimit::max(64 * 1024 * 1024)) // 允许最大 64MB 上传

@@ -7,6 +7,7 @@ import { useAuth } from "../../stores/auth";
 import { Modal } from "../ui/Modal";
 import { Button, Field, Input, Textarea } from "../ui/primitives";
 import { Select } from "../ui/Select";
+import { DatePicker } from "../ui/DatePicker";
 
 /** 新建维护记录。fixedCustomerId 由客户详情页传入；全局页则展示客户选择。 */
 export function MaintenanceFormModal({
@@ -28,7 +29,7 @@ export function MaintenanceFormModal({
   const [type, setType] = useState("inspection");
   const [deploymentId, setDeploymentId] = useState("");
   const [content, setContent] = useState("");
-  const [maintainedAt, setMaintainedAt] = useState("");
+  const [maintainedAt, setMaintainedAt] = useState(() => new Date().toISOString().split("T")[0]);
   const [error, setError] = useState<string | null>(null);
 
   const customers = useQuery({
@@ -116,10 +117,9 @@ export function MaintenanceFormModal({
             />
           </Field>
           <Field label="维护时间">
-            <Input
-              type="datetime-local"
+            <DatePicker
               value={maintainedAt}
-              onChange={(e) => setMaintainedAt(e.target.value)}
+              onChange={setMaintainedAt}
             />
           </Field>
         </div>
@@ -133,7 +133,7 @@ export function MaintenanceFormModal({
                 { value: "", label: "（不关联）" },
                 ...deployments.map((d) => ({
                   value: d.id,
-                  label: `${d.product}${d.version ? ` v${d.version}` : ""}`,
+                  label: d.approval_no ? `Wemol (审批号: ${d.approval_no})` : "Wemol",
                 })),
               ]}
             />

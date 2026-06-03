@@ -23,9 +23,14 @@
     "store:default",
     {
       "identifier": "http:default",
+      "comment": "后端地址可在「设置」里改，故放开常见内网 http/https；如需收紧改成固定地址。",
       "allow": [
         { "url": "http://127.0.0.1:8787/*" },
-        { "url": "http://localhost:8787/*" }
+        { "url": "http://localhost:8787/*" },
+        { "url": "http://*:*/*" },
+        { "url": "http://*/*" },
+        { "url": "https://*:*/*" },
+        { "url": "https://*/*" }
       ]
     }
   ]

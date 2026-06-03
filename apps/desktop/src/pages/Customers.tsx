@@ -60,7 +60,7 @@ export default function Customers() {
               <tr className="text-[11px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800/50">
                 <th className="text-left font-medium px-4 py-3">企业</th>
                 <th className="text-left font-medium px-4 py-3 hidden md:table-cell">行业</th>
-                <th className="text-right font-medium px-4 py-3">在用部署</th>
+                <th className="text-right font-medium px-4 py-3">部署数</th>
                 <th className="text-right font-medium px-4 py-3">维护次数</th>
                 <th className="text-left font-medium px-4 py-3 hidden lg:table-cell">最近维护</th>
                 <th className="w-8" />

@@ -1,10 +1,13 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import {
   Activity,
   LayoutDashboard,
   LogOut,
+  Moon,
   ScrollText,
+  Settings,
+  Sun,
   Users2,
   Building2,
   type LucideIcon,
@@ -13,7 +16,9 @@ import { AppLayout, useSidebar } from "./components/layout/AppLayout";
 import { Sidebar } from "./components/layout/Sidebar";
 import { WindowControls } from "./components/layout/WindowControls";
 import { Logo } from "./components/ui/Logo";
+import { SettingsModal } from "./components/ui/SettingsModal";
 import { useAuth, type Role } from "./stores/auth";
+import { useSettings } from "./stores/settings";
 
 interface NavEntry {
   path: string;
@@ -37,10 +42,31 @@ function titleFor(pathname: string): string {
   return entry?.label ?? "wsop";
 }
 
+function BrandHeader() {
+  const { isSidebarOpen } = useSidebar();
+  return (
+    <div className="flex items-center pointer-events-none select-none">
+      <Logo size={28} />
+      <span
+        className={`text-sm font-bold text-white tracking-tight transition-all duration-200 origin-left ${
+          isSidebarOpen
+            ? "opacity-100 max-w-[120px] ml-2.5"
+            : "opacity-0 max-w-0 ml-0 overflow-hidden pointer-events-none"
+        }`}
+      >
+        wsop
+      </span>
+    </div>
+  );
+}
+
 export default function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const user = useAuth((s) => s.user);
+  const theme = useSettings((s) => s.theme);
+  const setTheme = useSettings((s) => s.setTheme);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const items = useMemo(
     () => NAV.filter((n) => !n.roles || (user && n.roles.includes(user.role))),
@@ -56,10 +82,7 @@ export default function AppShell() {
       sidebar={
         <Sidebar>
           <Sidebar.Header>
-            <div className="flex items-center gap-2.5 pointer-events-none select-none">
-              <Logo size={28} />
-              <span className="text-sm font-bold text-white tracking-tight truncate">wsop</span>
-            </div>
+            <BrandHeader />
           </Sidebar.Header>
 
           <Sidebar.Content>
@@ -89,11 +112,29 @@ export default function AppShell() {
               {titleFor(location.pathname)}
             </span>
           </div>
-          <WindowControls />
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="w-7 h-7 rounded-lg hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200 flex items-center justify-center transition-all cursor-pointer outline-none active:scale-95"
+              title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
+            >
+              {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="w-7 h-7 rounded-lg hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200 flex items-center justify-center transition-all cursor-pointer outline-none active:scale-95"
+              title="设置"
+            >
+              <Settings size={14} />
+            </button>
+            <div className="w-px h-4 bg-zinc-800/70 mx-0.5" />
+            <WindowControls />
+          </div>
         </div>
       }
     >
       <Outlet />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </AppLayout>
   );
 }

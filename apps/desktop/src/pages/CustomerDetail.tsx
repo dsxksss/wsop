@@ -2,8 +2,12 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tabs } from "radix-ui";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
-import type { CustomerSummaryDto, Deployment } from "@wsop/shared";
+import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import type {
+  CustomerSummaryDto,
+  Deployment,
+  CustomerRemoteConnection,
+} from "@wsop/shared";
 import { api } from "../lib/api";
 import { fmtDate } from "../lib/format";
 import { useAuth } from "../stores/auth";
@@ -13,14 +17,25 @@ import { CustomerFormModal } from "../components/customers/CustomerFormModal";
 import { DeploymentsTab } from "../components/customers/DeploymentsTab";
 import { CustomerMaintenanceTab } from "../components/customers/CustomerMaintenanceTab";
 import { FilesTab } from "../components/customers/FilesTab";
+import { RemoteConnectionTab } from "../components/customers/RemoteConnectionTab";
+import { OperationTimelineTab } from "../components/customers/OperationTimelineTab";
 
 interface DetailResponse {
   customer: CustomerSummaryDto;
   deployments: Deployment[];
+  remote_connections: CustomerRemoteConnection[];
 }
 
-const TABS = ["概览", "部署", "维护记录", "文件空间"] as const;
+const TABS = ["概览", "部署", "远程连接", "维护记录", "文件空间", "操作时间线"] as const;
 type Tab = (typeof TABS)[number];
+
+/** 各 Tab 对应的「新增」动作文案；没有该项的 Tab（概览 / 时间线）不显示新增按钮。 */
+const CREATE_LABEL: Partial<Record<Tab, string>> = {
+  部署: "新增授权审批",
+  远程连接: "添加连接",
+  维护记录: "新建维护",
+  文件空间: "上传文件",
+};
 
 export default function CustomerDetail() {
   const { id = "" } = useParams();
@@ -33,6 +48,13 @@ export default function CustomerDetail() {
   const [tab, setTab] = useState<Tab>("概览");
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // 由顶部「新增」按钮驱动当前 Tab 的新建流程；切换 Tab 时复位
+  const [createOpen, setCreateOpen] = useState(false);
+  const changeTab = (v: Tab) => {
+    setTab(v);
+    setCreateOpen(false);
+  };
+  const createLabel = CREATE_LABEL[tab];
 
   const query = useQuery({
     queryKey: ["customer", id],
@@ -70,12 +92,17 @@ export default function CustomerDetail() {
             <div className="flex items-center gap-3 text-[11px] text-zinc-500 mt-0.5">
               <span>维护 {customer.maintenance_count} 次</span>
               <span>最近 {fmtDate(customer.last_maintained_at)}</span>
-              <span>在用部署 {customer.active_deployments}</span>
+              <span>部署数 {customer.active_deployments}</span>
             </div>
           </div>
         </div>
         {canWrite && (
           <div className="flex items-center gap-2 shrink-0">
+            {createLabel && (
+              <Button icon={<Plus size={13} />} onClick={() => setCreateOpen(true)}>
+                {createLabel}
+              </Button>
+            )}
             <Button variant="ghost" icon={<Pencil size={13} />} onClick={() => setEditing(true)}>
               编辑
             </Button>
@@ -95,7 +122,7 @@ export default function CustomerDetail() {
       {/* tabs */}
       <Tabs.Root
         value={tab}
-        onValueChange={(v) => setTab(v as Tab)}
+        onValueChange={(v) => changeTab(v as Tab)}
         className="flex flex-col gap-5"
       >
         <Tabs.List className="flex items-center gap-1 border-b border-zinc-800/50">
@@ -114,13 +141,47 @@ export default function CustomerDetail() {
           <Overview customer={customer} />
         </Tabs.Content>
         <Tabs.Content value="部署" className="outline-none">
-          <DeploymentsTab customerId={id} deployments={deployments} canWrite={canWrite} />
+          <DeploymentsTab
+            customerId={id}
+            deployments={deployments}
+            canWrite={canWrite}
+            createOpen={createOpen}
+            setCreateOpen={setCreateOpen}
+          />
+        </Tabs.Content>
+        <Tabs.Content value="远程连接" className="outline-none">
+          <RemoteConnectionTab
+            customerId={id}
+            connections={query.data.remote_connections}
+            canWrite={canWrite}
+            createOpen={createOpen}
+            setCreateOpen={setCreateOpen}
+          />
         </Tabs.Content>
         <Tabs.Content value="维护记录" className="outline-none">
-          <CustomerMaintenanceTab customerId={id} canWrite={canWrite} deployments={deployments} />
+          <CustomerMaintenanceTab
+            customerId={id}
+            canWrite={canWrite}
+            deployments={deployments}
+            createOpen={createOpen}
+            setCreateOpen={setCreateOpen}
+          />
         </Tabs.Content>
         <Tabs.Content value="文件空间" className="outline-none">
-          <FilesTab customerId={id} canWrite={canWrite} />
+          <FilesTab
+            customerId={id}
+            canWrite={canWrite}
+            createOpen={createOpen}
+            setCreateOpen={setCreateOpen}
+          />
+        </Tabs.Content>
+        <Tabs.Content value="操作时间线" className="outline-none">
+          <OperationTimelineTab
+            customerId={id}
+            customer={customer}
+            deployments={deployments}
+            connections={query.data.remote_connections}
+          />
         </Tabs.Content>
       </Tabs.Root>
 

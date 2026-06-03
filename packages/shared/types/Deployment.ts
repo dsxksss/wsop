@@ -3,4 +3,4 @@
 /**
  * 部署实例数据库行 / DTO（字段一致，直接复用）。
  */
-export type Deployment = { id: string, customer_id: string, product: string, version: string | null, environment: string | null, go_live_date: string | null, status: string, notes: string | null, created_at: string, updated_at: string, };
+export type Deployment = { id: string, customer_id: string, product: string, version: string | null, environment: string | null, go_live_date: string | null, status: string, notes: string | null, approval_no: string | null, submitted_at: string | null, department: string | null, purpose: string | null, concurrency_limit: number | null, user_count: number | null, license_expiry: string | null, module_count: number | null, modules: string | null, created_at: string, updated_at: string, };

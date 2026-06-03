@@ -1,4 +1,10 @@
 @import "tailwindcss";
+
+@theme {
+  --color-zinc-500: #8a99ad; /* 映射到更亮的瓦灰色，提升暗黑模式下的次级标签/文本可读性 */
+  --color-zinc-600: #707f94; /* 映射到更亮的灰蓝色，用于时间等次要元数据 */
+}
+
 @import "@fontsource/space-grotesk/300.css";
 @import "@fontsource/space-grotesk/400.css";
 @import "@fontsource/space-grotesk/500.css";
@@ -68,6 +74,21 @@
     --glass-card-bg: #ffffff; /* Solid opaque card */
     --glass-card-border: rgba(16, 185, 129, 0.15);
     --glass-shadow: 0 8px 30px rgba(13, 39, 31, 0.04), 0 1px 0 rgba(255, 255, 255, 0.85);
+
+    /* 浅色模式下加深强调色：300/400 这些浅色调用作文字/图标时在浅底上对比度太低，
+       这里把对应的 Tailwind 颜色 token 调深（base 层覆盖 theme 层），一次性修正所有
+       text-*-300/400（含 hover / data-[state=active] 等变体、徽章文字、链接、区块小标题）。
+       注意：徽章等背景用的是 *-500/xx 淡色，不在此处改动，依旧保持浅色底。 */
+    --color-emerald-300: #047857; /* emerald-700 */
+    --color-emerald-400: #047857;
+    --color-amber-300: #b45309; /* amber-700 */
+    --color-amber-400: #b45309;
+    --color-blue-300: #1d4ed8; /* blue-700 */
+    --color-blue-400: #1d4ed8;
+    --color-red-300: #b91c1c; /* red-700 */
+    --color-red-400: #c1271f;
+    --color-violet-300: #6d28d9; /* violet-700 */
+    --color-violet-400: #6d28d9;
   }
 
   body {
@@ -131,6 +152,25 @@
   background-color: var(--color-bg-main) !important;
 }
 
+/* 主区 / 登录页 / 路由根的深色画布 */
+.light .bg-\[\#060a0f\] {
+  background-color: var(--color-bg-main) !important;
+}
+
+/* 弹窗 / 下拉浮层（Modal、Select、DatePicker 等硬编码深色面板）转为浅色实底卡片 */
+.light .bg-\[\#0c0f15\] {
+  background-color: var(--color-bg-card) !important;
+  border-color: var(--color-border-card) !important;
+}
+
+/* Modal 边框 */
+.light .border-zinc-800\/70,
+.light .border-zinc-800\/60,
+.light .border-zinc-800\/50,
+.light .border-zinc-800\/40 {
+  border-color: var(--color-border-card) !important;
+}
+
 .light .bg-\[\#0b0c10\],
 .light .bg-\[\#0b0c10\]\/80,
 .light .bg-\[\#0b0c10\]\/75 {
@@ -141,18 +181,21 @@
   border-color: rgba(16, 185, 129, 0.12) !important;
 }
 
-.light .bg-\[\#08090d\] {
+.light .bg-\[\#08090d\],
+.light .bg-\[\#08090d\]\/65 {
   background-color: var(--color-bg-sidebar) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .light .bg-\[\#151922\] {
   background-color: var(--color-bg-hover) !important;
-  color: #10b981 !important;
+  color: #047857 !important; /* 加深，浅底上的激活态文字可读 */
 }
 
 .light .hover\:bg-\[\#0c0d12\]:hover {
   background-color: rgba(16, 185, 129, 0.05) !important;
-  color: #10b981 !important;
+  color: #047857 !important;
 }
 
 .light .border-\[\#11141c\],
@@ -231,8 +274,27 @@
   color: #ffffff !important;
 }
 
+/* 实心强调色按钮 / 选中项（primary、danger、DatePicker 选中日）需保持白色文字，
+   否则会被下方的 .light .text-white→深色规则强制成深色，落在饱和底色上很怪。
+   用「双类」选择器提高特异性，确保无视源码顺序都能胜出。 */
+.light .bg-emerald-500.text-white,
+.light .bg-red-500\/90.text-white {
+  color: #ffffff !important;
+}
+
 .light .hover\:bg-zinc-900\/50:hover {
   background-color: var(--color-bg-hover) !important;
+}
+
+/* 深色 hover 底（菜单项、图标按钮等大量使用）在浅色下会闪深色，统一改为轻微的中性浅底 */
+.light .hover\:bg-zinc-800\/20:hover,
+.light .hover\:bg-zinc-800\/30:hover,
+.light .hover\:bg-zinc-800\/40:hover,
+.light .hover\:bg-zinc-800\/50:hover,
+.light .hover\:bg-zinc-800\/60:hover,
+.light .hover\:bg-zinc-900\/20:hover,
+.light .hover\:bg-zinc-700\/50:hover {
+  background-color: rgba(19, 39, 31, 0.06) !important;
 }
 
 .light .bg-zinc-900\/60 {

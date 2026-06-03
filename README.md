@@ -5,6 +5,10 @@
 
 - **定位**：维护记录系统（不是工单流转）。维护记录 = 每一次维护事件，含轻量状态（进行中 / 已完成）。
 - **多人协作**：桌面客户端 + 中心服务，数据集中存储，支持跨用户共享与审计。
+- **部署登记**：部署实例记录 Wemol 授权审批信息（审批编号、提交时间、部门、并发/用户/模块数、Licence 有效期等）。
+- **远程连接**：每个客户可维护多条远程连接（Wemol 账号 + 结构化连接信息），供工程师远程接入；凭据仅对 admin / engineer 可见。
+- **文件在线预览**：客户文件空间支持点开即看（图片 / PDF / 文本及常见代码文件），无需先下载。
+- **浅色主题 + 可配置后端**：右上角可一键切换深 / 浅色主题，并在「设置」里修改后端服务地址（带连接测试）；两者均持久化。
 
 ## 架构
 
@@ -63,13 +67,14 @@ pnpm server:build      # 产物：apps/server/target/release/wsop-server.exe（�
 **桌面端**：
 
 ```bash
-# 生产构建前，把后端地址写进环境变量（默认指向本机）
+# 可选：用环境变量设默认后端地址（也可打包后在 App 内「设置」里改，且会持久化）
 VITE_API_BASE=http://<服务器IP>:8787 pnpm tauri:build
 # 产物：apps/desktop/src-tauri/target/release/bundle/ 下的安装包（msi/nsis 等）
 ```
 
-> 改了后端地址，还需把同一地址加入 `apps/desktop/src-tauri/capabilities/default.json` 的 `http` 允许列表，
-> 否则客户端请求会被 Tauri 拦截。
+> 后端地址可在 App 右上角「设置」里随时修改（带连接测试，持久化到本机）。为支持运行时切换，
+> `apps/desktop/src-tauri/capabilities/default.json` 的 `http` 允许列表已放开常见内网 http/https 地址；
+> 若部署环境固定，可把它收紧成固定地址以提升安全性。
 
 ## 部署
 
@@ -96,7 +101,8 @@ VITE_API_BASE=http://<服务器IP>:8787 pnpm tauri:build
 
 ## 安全与数据
 
-- 密码用 Argon2 哈希存储；登录签发 JWT（7 天）；所有写操作落审计日志（操作者/动作/对象/diff/IP/UA）。
+- 登录密码用 Argon2 单向哈希存储；登录签发 JWT（7 天）；所有写操作落审计日志（操作者/动作/对象/diff/IP/UA），审计中**不含任何密码**。
+- 远程连接凭据（`wemol_password` / `connection_info`）为运维取用需要而明文落库，靠访问控制保护：viewer 在客户详情接口中拿不到这两个字段（返回 `null`），仅 admin / engineer 可见。如需更强保护可加列级加密落库。
 - 文件上传上限 64MB，存于服务端本地文件系统；下载校验登录态。
 - SQLite 文件与 `storage/` 不入 Git，请纳入服务器备份策略。
 - 桌面端 JWT 通过 Tauri Store 持久化在本机。

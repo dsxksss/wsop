@@ -39,7 +39,7 @@ There is **no JS test framework** configured.
 
 ### Client/server split
 The desktop app is a **thin client**: it authenticates against `apps/server` (JWT), and all customers,
-deployments, maintenance records, files, and audit logs live in PostgreSQL behind the Axum API. Multi-user
+deployments, maintenance records, files, and audit logs live in the server's SQLite DB behind the Axum API. Multi-user
 collaboration (assignment, shared file space, cross-user audit) is why a central server exists rather than
 local-only storage.
 
@@ -72,8 +72,16 @@ navbar is the borderless-window drag region (`data-tauri-drag-region`) and hosts
 - **Routing**: `react-router` v7 hash router (`router.tsx`) — `/login` + a protected shell (`AppShell.tsx`) with
   an `AdminRoute` guard for `/users` and `/audit`. Pages in `pages/`, feature components in `components/`.
 - **Server state**: `@tanstack/react-query`; **HTTP**: `lib/api.ts` wraps `@tauri-apps/plugin-http` fetch and
-  injects the JWT. Backend base URL = `lib/config.ts` (`VITE_API_BASE`, default `127.0.0.1:8787`).
-- **Auth**: `stores/auth.ts` (zustand); JWT persisted via `@tauri-apps/plugin-store`.
+  injects the JWT. Base URL is a **runtime-mutable** module var (`setApiBase`/`getApiBase`), seeded from
+  `lib/config.ts` (`VITE_API_BASE`, default `127.0.0.1:8787`) and overridable in the in-app **Settings** modal.
+- **Settings**: `stores/settings.ts` (zustand) holds backend URL + theme, persisted via `@tauri-apps/plugin-store`
+  (`settings.json`); theme is also mirrored to `localStorage` and applied pre-render (`applyCachedThemeEarly` in
+  `main.tsx`) to avoid a flash. The navbar (top-right) has a theme toggle + a gear opening `SettingsModal`.
+  Because the URL is user-settable, the HTTP capability scope is **widened to any host** (`http(s)://*`).
+- **Auth**: `stores/auth.ts` (zustand); JWT persisted via `@tauri-apps/plugin-store`. `main.tsx` awaits settings
+  init **before** auth init so `/auth/me` uses the persisted backend URL.
+- **File viewer**: `components/customers/FileViewerModal.tsx` previews files inline (image/pdf via object URL,
+  text via `blob.text()`, else download fallback) without leaving the app.
 - Shared DTO types come from `@wsop/shared` (ts-rs generated).
 
 ### Styling & UI components

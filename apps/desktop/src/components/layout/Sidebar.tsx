@@ -12,11 +12,13 @@ export function Sidebar({ children }: { children: ReactNode }) {
   return <div className="flex flex-col h-full min-h-0">{children}</div>;
 }
 
-/** Top brand row. Doubles as a drag region for the borderless window. */
 Sidebar.Header = function SidebarHeader({ children }: { children: ReactNode }) {
+  const { isSidebarOpen } = useSidebar();
   return (
     <div
-      className="h-20 shrink-0 flex items-center gap-2.5 px-4 border-b border-[#11141c]"
+      className={`h-20 shrink-0 flex items-center border-b border-[#11141c] transition-all duration-200 ${
+        isSidebarOpen ? 'px-4 justify-start' : 'px-0 justify-center'
+      }`}
       data-tauri-drag-region
     >
       {children}

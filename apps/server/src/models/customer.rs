@@ -66,3 +66,17 @@ impl From<CustomerSummaryRow> for CustomerSummaryDto {
         }
     }
 }
+
+/// 远程连接相关信息数据库行 / DTO。
+#[derive(Debug, FromRow, Serialize, TS)]
+#[ts(export, export_to = "../../../packages/shared/types/")]
+pub struct CustomerRemoteConnection {
+    pub id: String,
+    pub customer_id: String,
+    pub name: String,
+    pub wemol_username: Option<String>,
+    pub wemol_password: Option<String>,
+    pub connection_info: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}

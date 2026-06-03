@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 import type { Deployment, MaintenanceListItem } from "@wsop/shared";
 import { api } from "../../lib/api";
 import { fmtDate, maintenanceTypeLabel } from "../../lib/format";
-import { Badge, Button, EmptyState, Spinner, StatusBadge } from "../ui/primitives";
+import { Badge, EmptyState, Spinner, StatusBadge } from "../ui/primitives";
 import { MaintenanceFormModal } from "../maintenance/MaintenanceFormModal";
 import { MaintenanceDetailModal } from "../maintenance/MaintenanceDetailModal";
 
@@ -12,12 +11,16 @@ export function CustomerMaintenanceTab({
   customerId,
   canWrite,
   deployments,
+  createOpen,
+  setCreateOpen,
 }: {
   customerId: string;
   canWrite: boolean;
   deployments?: Deployment[];
+  /** 新建流程由父级（客户详情顶部按钮）控制。 */
+  createOpen: boolean;
+  setCreateOpen: (open: boolean) => void;
 }) {
-  const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
   const query = useQuery({
@@ -28,14 +31,6 @@ export function CustomerMaintenanceTab({
 
   return (
     <div className="flex flex-col gap-3">
-      {canWrite && (
-        <div className="flex justify-end">
-          <Button icon={<Plus size={14} />} onClick={() => setCreating(true)}>
-            新建维护
-          </Button>
-        </div>
-      )}
-
       <div className="card overflow-hidden">
         {query.isLoading ? (
           <Spinner />
@@ -64,10 +59,10 @@ export function CustomerMaintenanceTab({
         )}
       </div>
 
-      {creating && (
+      {createOpen && (
         <MaintenanceFormModal
-          open={creating}
-          onClose={() => setCreating(false)}
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
           fixedCustomerId={customerId}
           deployments={deployments}
         />

@@ -36,6 +36,15 @@ pub struct DeploymentInput {
     pub go_live_date: Option<String>,
     pub status: Option<String>,
     pub notes: Option<String>,
+    pub approval_no: Option<String>,
+    pub submitted_at: Option<String>,
+    pub department: Option<String>,
+    pub purpose: Option<String>,
+    pub concurrency_limit: Option<i64>,
+    pub user_count: Option<i64>,
+    pub license_expiry: Option<String>,
+    pub module_count: Option<i64>,
+    pub modules: Option<String>,
 }
 
 fn valid_status(s: &str) -> bool {
@@ -72,7 +81,9 @@ pub async fn create(
     let now = Utc::now().to_rfc3339();
     sqlx::query(
         "INSERT INTO deployments (id, customer_id, product, version, environment, go_live_date, \
-         status, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+         status, notes, approval_no, submitted_at, department, purpose, concurrency_limit, \
+         user_count, license_expiry, module_count, modules, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(&customer_id)
@@ -82,6 +93,15 @@ pub async fn create(
     .bind(&req.go_live_date)
     .bind(status)
     .bind(&req.notes)
+    .bind(&req.approval_no)
+    .bind(&req.submitted_at)
+    .bind(&req.department)
+    .bind(&req.purpose)
+    .bind(&req.concurrency_limit)
+    .bind(&req.user_count)
+    .bind(&req.license_expiry)
+    .bind(&req.module_count)
+    .bind(&req.modules)
     .bind(&now)
     .bind(&now)
     .execute(&state.db)
@@ -127,7 +147,9 @@ pub async fn update(
     let now = Utc::now().to_rfc3339();
     sqlx::query(
         "UPDATE deployments SET product = ?, version = ?, environment = ?, go_live_date = ?, \
-         status = ?, notes = ?, updated_at = ? WHERE id = ?",
+         status = ?, notes = ?, approval_no = ?, submitted_at = ?, department = ?, purpose = ?, \
+         concurrency_limit = ?, user_count = ?, license_expiry = ?, module_count = ?, modules = ?, \
+         updated_at = ? WHERE id = ?",
     )
     .bind(req.product.trim())
     .bind(&req.version)
@@ -135,6 +157,15 @@ pub async fn update(
     .bind(&req.go_live_date)
     .bind(status)
     .bind(&req.notes)
+    .bind(&req.approval_no)
+    .bind(&req.submitted_at)
+    .bind(&req.department)
+    .bind(&req.purpose)
+    .bind(&req.concurrency_limit)
+    .bind(&req.user_count)
+    .bind(&req.license_expiry)
+    .bind(&req.module_count)
+    .bind(&req.modules)
     .bind(&now)
     .bind(&id)
     .execute(&state.db)

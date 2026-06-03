@@ -1,10 +1,29 @@
 import { fetch } from "@tauri-apps/plugin-http";
-import { API_BASE } from "./config";
+import { API_BASE as DEFAULT_API_BASE } from "./config";
+
+/** 当前后端地址，可在「设置」里改并持久化（见 stores/settings.ts）。 */
+let apiBase = DEFAULT_API_BASE;
+export function setApiBase(url: string) {
+  apiBase = url.trim().replace(/\/+$/, "");
+}
+export function getApiBase() {
+  return apiBase;
+}
 
 /** 当前 JWT，由认证 store 注入（见 stores/auth.ts）。 */
 let authToken: string | null = null;
 export function setAuthToken(token: string | null) {
   authToken = token;
+}
+
+/** 健康检查指定后端地址（用于「设置」里测试连接，不改全局地址）。 */
+export async function pingHealth(base: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${base.trim().replace(/\/+$/, "")}/health`, { method: "GET" });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 export class ApiError extends Error {
@@ -33,7 +52,7 @@ async function request<T>(
     payload = JSON.stringify(body);
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { method, headers, body: payload });
+  const res = await fetch(`${apiBase}${path}`, { method, headers, body: payload });
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
 
@@ -51,7 +70,7 @@ async function request<T>(
 export async function downloadBlob(path: string): Promise<Blob> {
   const headers: Record<string, string> = {};
   if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
-  const res = await fetch(`${API_BASE}${path}`, { method: "GET", headers });
+  const res = await fetch(`${apiBase}${path}`, { method: "GET", headers });
   if (!res.ok) throw new ApiError(res.status, `下载失败 (HTTP ${res.status})`);
   return await res.blob();
 }
@@ -67,7 +86,7 @@ export async function uploadFile<T>(
   const form = new FormData();
   if (folder) form.append("folder", folder);
   form.append("file", file);
-  const res = await fetch(`${API_BASE}${path}`, { method: "POST", headers, body: form });
+  const res = await fetch(`${apiBase}${path}`, { method: "POST", headers, body: form });
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {

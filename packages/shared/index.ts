@@ -11,3 +11,4 @@ export type { MaintenanceListItem } from "./types/MaintenanceListItem";
 export type { MaintenanceNote } from "./types/MaintenanceNote";
 export type { CustomerFile } from "./types/CustomerFile";
 export type { AuditLog } from "./types/AuditLog";
+export type { CustomerRemoteConnection } from "./types/CustomerRemoteConnection";

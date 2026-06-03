@@ -28,6 +28,14 @@ pub fn router(state: AppState) -> Router {
             get(customers::get).put(customers::update).delete(customers::delete),
         )
         .route(
+            "/customers/{id}/remote-connections",
+            post(customers::create_remote_connection),
+        )
+        .route(
+            "/remote-connections/{id}",
+            put(customers::update_remote_connection).delete(customers::delete_remote_connection),
+        )
+        .route(
             "/customers/{id}/deployments",
             get(deployments::list).post(deployments::create),
         )

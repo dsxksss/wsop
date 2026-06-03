@@ -1,18 +1,39 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, FileText, Trash2, Upload } from "lucide-react";
+import { Download, Eye, FileText, Loader2, Trash2 } from "lucide-react";
 import type { CustomerFile } from "@wsop/shared";
 import { api, downloadBlob, uploadFile } from "../../lib/api";
 import { fmtDateTime, fmtSize } from "../../lib/format";
-import { Button, EmptyState, Spinner } from "../ui/primitives";
+import { EmptyState, Spinner } from "../ui/primitives";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { FileViewerModal } from "./FileViewerModal";
 
-export function FilesTab({ customerId, canWrite }: { customerId: string; canWrite: boolean }) {
+export function FilesTab({
+  customerId,
+  canWrite,
+  createOpen,
+  setCreateOpen,
+}: {
+  customerId: string;
+  canWrite: boolean;
+  /** 上传由父级（客户详情顶部按钮）触发：置 true 即弹出文件选择框。 */
+  createOpen: boolean;
+  setCreateOpen: (open: boolean) => void;
+}) {
   const qc = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<CustomerFile | null>(null);
+  const [viewing, setViewing] = useState<CustomerFile | null>(null);
+
+  // 顶部「上传文件」按钮置位后，触发原生文件选择框
+  useEffect(() => {
+    if (createOpen) {
+      fileInput.current?.click();
+      setCreateOpen(false);
+    }
+  }, [createOpen, setCreateOpen]);
 
   const query = useQuery({
     queryKey: ["files", customerId],
@@ -59,16 +80,11 @@ export function FilesTab({ customerId, canWrite }: { customerId: string; canWrit
 
   return (
     <div className="flex flex-col gap-3">
-      {canWrite && (
-        <div className="flex justify-end">
-          <input ref={fileInput} type="file" className="hidden" onChange={onPick} />
-          <Button
-            icon={<Upload size={14} />}
-            loading={busy}
-            onClick={() => fileInput.current?.click()}
-          >
-            上传文件
-          </Button>
+      {canWrite && <input ref={fileInput} type="file" className="hidden" onChange={onPick} />}
+
+      {busy && (
+        <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+          <Loader2 size={13} className="animate-spin" /> 上传中…
         </div>
       )}
 
@@ -87,16 +103,33 @@ export function FilesTab({ customerId, canWrite }: { customerId: string; canWrit
           <div className="flex flex-col divide-y divide-zinc-800/40">
             {query.data.map((f) => (
               <div key={f.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="w-8 h-8 rounded-lg bg-zinc-800/50 flex items-center justify-center shrink-0">
+                <button
+                  onClick={() => setViewing(f)}
+                  className="w-8 h-8 rounded-lg bg-zinc-800/50 flex items-center justify-center shrink-0 hover:bg-zinc-700/50 cursor-pointer"
+                  title="预览"
+                >
                   <FileText size={15} className="text-zinc-400" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm text-white truncate">{f.filename}</div>
+                </button>
+                <button
+                  onClick={() => setViewing(f)}
+                  className="min-w-0 flex-1 text-left cursor-pointer group"
+                  title="预览"
+                >
+                  <div className="text-sm text-white truncate group-hover:text-emerald-300 transition-colors">
+                    {f.filename}
+                  </div>
                   <div className="text-[11px] text-zinc-500">
                     {fmtSize(f.size_bytes)} · {f.uploaded_by_username ?? "—"} ·{" "}
                     {fmtDateTime(f.created_at)}
                   </div>
-                </div>
+                </button>
+                <button
+                  onClick={() => setViewing(f)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-emerald-300 hover:bg-zinc-800/40 cursor-pointer"
+                  title="预览"
+                >
+                  <Eye size={15} />
+                </button>
                 <button
                   onClick={() => onDownload(f)}
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-emerald-300 hover:bg-zinc-800/40 cursor-pointer"
@@ -129,6 +162,9 @@ export function FilesTab({ customerId, canWrite }: { customerId: string; canWrit
           confirmVariant="danger"
           loading={del.isPending}
         />
+      )}
+      {viewing && (
+        <FileViewerModal open onClose={() => setViewing(null)} file={viewing} />
       )}
     </div>
   );

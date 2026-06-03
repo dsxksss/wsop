@@ -10,7 +10,9 @@ use uuid::Uuid;
 use crate::audit::{self, RequestMeta};
 use crate::auth::extractor::AuthUser;
 use crate::error::{AppError, AppResult};
-use crate::models::customer::{CustomerSummaryDto, CustomerSummaryRow};
+use crate::models::customer::{
+    CustomerSummaryDto, CustomerSummaryRow, CustomerRemoteConnection,
+};
 use crate::models::deployment::Deployment;
 use crate::state::AppState;
 
@@ -60,7 +62,7 @@ pub async fn list(
 /// GET /customers/{id} — 详情：客户汇总 + 部署列表。
 pub async fn get(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
     let sql = format!("{SUMMARY_SELECT} WHERE c.id = ?");
@@ -77,9 +79,27 @@ pub async fn get(
     .fetch_all(&state.db)
     .await?;
 
+    let mut remote_connections = sqlx::query_as::<_, CustomerRemoteConnection>(
+        "SELECT * FROM customer_remote_connections WHERE customer_id = ? ORDER BY created_at DESC"
+    )
+    .bind(&id)
+    .fetch_all(&state.db)
+    .await?;
+
+    // 凭据脱敏：只读用户（viewer）不返回任何密码材料。
+    // 密码既在 wemol_password，也嵌在 connection_info 的 JSON 里，因此两者一并清除，
+    // viewer 仅能看到连接名与用户名。
+    if user.require_write().is_err() {
+        for c in &mut remote_connections {
+            c.wemol_password = None;
+            c.connection_info = None;
+        }
+    }
+
     Ok(Json(json!({
         "customer": CustomerSummaryDto::from(customer),
         "deployments": deployments,
+        "remote_connections": remote_connections,
     })))
 }
 
@@ -218,8 +238,165 @@ async fn fetch_detail(state: &AppState, id: &str) -> AppResult<Json<Value>> {
     .bind(id)
     .fetch_all(&state.db)
     .await?;
+    let remote_connections = sqlx::query_as::<_, CustomerRemoteConnection>(
+        "SELECT * FROM customer_remote_connections WHERE customer_id = ? ORDER BY created_at DESC"
+    )
+    .bind(id)
+    .fetch_all(&state.db)
+    .await?;
     Ok(Json(json!({
         "customer": CustomerSummaryDto::from(customer),
         "deployments": deployments,
+        "remote_connections": remote_connections,
     })))
+}
+
+#[derive(Deserialize)]
+pub struct CreateRemoteConnectionInput {
+    pub name: String,
+    pub wemol_username: Option<String>,
+    pub wemol_password: Option<String>,
+    pub connection_info: Option<String>,
+}
+
+/// POST /customers/{id}/remote-connections — 添加远程连接（admin / engineer）。
+pub async fn create_remote_connection(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(customer_id): Path<String>,
+    meta: RequestMeta,
+    Json(req): Json<CreateRemoteConnectionInput>,
+) -> AppResult<Json<Value>> {
+    user.require_write()?;
+    
+    let exists: Option<(String,)> = sqlx::query_as("SELECT id FROM customers WHERE id = ?")
+        .bind(&customer_id)
+        .fetch_optional(&state.db)
+        .await?;
+    if exists.is_none() {
+        return Err(AppError::NotFound);
+    }
+
+    if req.name.trim().is_empty() {
+        return Err(AppError::BadRequest("名称不能为空".into()));
+    }
+
+    let id = Uuid::new_v4().to_string();
+    let now = Utc::now().to_rfc3339();
+    sqlx::query(
+        "INSERT INTO customer_remote_connections (id, customer_id, name, wemol_username, wemol_password, connection_info, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(&id)
+    .bind(&customer_id)
+    .bind(req.name.trim())
+    .bind(&req.wemol_username)
+    .bind(&req.wemol_password)
+    .bind(&req.connection_info)
+    .bind(&now)
+    .bind(&now)
+    .execute(&state.db)
+    .await?;
+
+    audit::record(
+        &state.db,
+        Some(&user.id),
+        "create_remote_connection",
+        "customer",
+        Some(&customer_id),
+        Some(json!({ "name": req.name })),
+        &meta,
+    )
+    .await?;
+
+    fetch_detail(&state, &customer_id).await
+}
+
+#[derive(Deserialize)]
+pub struct UpdateRemoteConnectionInput {
+    pub name: String,
+    pub wemol_username: Option<String>,
+    pub wemol_password: Option<String>,
+    pub connection_info: Option<String>,
+}
+
+/// PUT /remote-connections/{id} — 修改远程连接（admin / engineer）。
+pub async fn update_remote_connection(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+    meta: RequestMeta,
+    Json(req): Json<UpdateRemoteConnectionInput>,
+) -> AppResult<Json<Value>> {
+    user.require_write()?;
+    
+    let conn: Option<(String,)> = sqlx::query_as("SELECT customer_id FROM customer_remote_connections WHERE id = ?")
+        .bind(&id)
+        .fetch_optional(&state.db)
+        .await?;
+    let (customer_id,) = conn.ok_or(AppError::NotFound)?;
+
+    if req.name.trim().is_empty() {
+        return Err(AppError::BadRequest("名称不能为空".into()));
+    }
+
+    let now = Utc::now().to_rfc3339();
+    sqlx::query(
+        "UPDATE customer_remote_connections SET name = ?, wemol_username = ?, wemol_password = ?, connection_info = ?, updated_at = ? WHERE id = ?"
+    )
+    .bind(req.name.trim())
+    .bind(&req.wemol_username)
+    .bind(&req.wemol_password)
+    .bind(&req.connection_info)
+    .bind(&now)
+    .bind(&id)
+    .execute(&state.db)
+    .await?;
+
+    audit::record(
+        &state.db,
+        Some(&user.id),
+        "update_remote_connection",
+        "customer",
+        Some(&customer_id),
+        Some(json!({ "id": id, "name": req.name })),
+        &meta,
+    )
+    .await?;
+
+    fetch_detail(&state, &customer_id).await
+}
+
+/// DELETE /remote-connections/{id} — 删除远程连接（admin / engineer）。
+pub async fn delete_remote_connection(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+    meta: RequestMeta,
+) -> AppResult<Json<Value>> {
+    user.require_write()?;
+    
+    let conn: Option<(String,)> = sqlx::query_as("SELECT customer_id FROM customer_remote_connections WHERE id = ?")
+        .bind(&id)
+        .fetch_optional(&state.db)
+        .await?;
+    let (customer_id,) = conn.ok_or(AppError::NotFound)?;
+
+    sqlx::query("DELETE FROM customer_remote_connections WHERE id = ?")
+        .bind(&id)
+        .execute(&state.db)
+        .await?;
+
+    audit::record(
+        &state.db,
+        Some(&user.id),
+        "delete_remote_connection",
+        "customer",
+        Some(&customer_id),
+        Some(json!({ "id": id })),
+        &meta,
+    )
+    .await?;
+
+    fetch_detail(&state, &customer_id).await
 }
