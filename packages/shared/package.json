@@ -1,0 +1,10 @@
+{
+  "name": "@wsop/shared",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "types": "index.ts",
+  "exports": {
+    ".": "./index.ts"
+  }
+}
