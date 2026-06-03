@@ -5,6 +5,7 @@ import type { Deployment } from "@wsop/shared";
 import { api } from "../../lib/api";
 import { fmtDate } from "../../lib/format";
 import { Badge, Button, EmptyState } from "../ui/primitives";
+import { ConfirmModal } from "../ui/ConfirmModal";
 import { DeploymentFormModal } from "./DeploymentFormModal";
 
 export function DeploymentsTab({
@@ -19,10 +20,14 @@ export function DeploymentsTab({
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Deployment | null>(null);
+  const [deleting, setDeleting] = useState<Deployment | null>(null);
 
   const del = useMutation({
     mutationFn: (id: string) => api.del(`/deployments/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["customer", customerId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["customer", customerId] });
+      setDeleting(null);
+    },
   });
 
   return (
@@ -76,9 +81,7 @@ export function DeploymentsTab({
                   <Button
                     variant="subtle"
                     icon={<Trash2 size={12} />}
-                    onClick={() => {
-                      if (confirm(`删除部署「${d.product}」？`)) del.mutate(d.id);
-                    }}
+                    onClick={() => setDeleting(d)}
                   >
                     删除
                   </Button>
@@ -102,6 +105,18 @@ export function DeploymentsTab({
           onClose={() => setEditing(null)}
           customerId={customerId}
           initial={editing}
+        />
+      )}
+      {deleting && (
+        <ConfirmModal
+          open
+          onClose={() => setDeleting(null)}
+          onConfirm={() => del.mutate(deleting.id)}
+          title="删除部署"
+          message={`确定要删除部署「${deleting.product}」吗？`}
+          confirmText="删除"
+          confirmVariant="danger"
+          loading={del.isPending}
         />
       )}
     </div>

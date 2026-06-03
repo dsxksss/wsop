@@ -6,6 +6,7 @@ import { api, ApiError } from "../lib/api";
 import { useAuth } from "../stores/auth";
 import { Button, EmptyState, Field, Input, Spinner } from "../components/ui/primitives";
 import { Modal } from "../components/ui/Modal";
+import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { Select } from "../components/ui/Select";
 import { Switch } from "../components/ui/Switch";
 
@@ -20,6 +21,7 @@ export default function Users() {
   const myId = useAuth((s) => s.user?.id);
   const [creating, setCreating] = useState(false);
   const [resetting, setResetting] = useState<UserDto | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserDto | null>(null);
 
   const query = useQuery({ queryKey: ["users"], queryFn: () => api.get<UserDto[]>("/users") });
 
@@ -30,7 +32,10 @@ export default function Users() {
   });
   const del = useMutation({
     mutationFn: (id: string) => api.del(`/users/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      setDeletingUser(null);
+    },
   });
 
   return (
@@ -101,9 +106,7 @@ export default function Users() {
                       </button>
                       {u.id !== myId && (
                         <button
-                          onClick={() => {
-                            if (confirm(`删除用户「${u.username}」？`)) del.mutate(u.id);
-                          }}
+                          onClick={() => setDeletingUser(u)}
                           className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-red-400 hover:bg-zinc-800/40 cursor-pointer"
                           title="删除"
                         >
@@ -120,6 +123,18 @@ export default function Users() {
       </div>
 
       {creating && <CreateUserModal onClose={() => setCreating(false)} />}
+      {deletingUser && (
+        <ConfirmModal
+          open
+          onClose={() => setDeletingUser(null)}
+          onConfirm={() => del.mutate(deletingUser.id)}
+          title="删除用户"
+          message={`确定要删除用户「${deletingUser.username}」吗？`}
+          confirmText="删除"
+          confirmVariant="danger"
+          loading={del.isPending}
+        />
+      )}
       {resetting && (
         <ResetPasswordModal
           user={resetting}

@@ -5,6 +5,7 @@ import type { MaintenanceNote, MaintenanceRecord } from "@wsop/shared";
 import { api } from "../../lib/api";
 import { fmtDateTime, maintenanceTypeLabel } from "../../lib/format";
 import { Modal } from "../ui/Modal";
+import { ConfirmModal } from "../ui/ConfirmModal";
 import { Button, Field, Spinner, StatusBadge, Textarea } from "../ui/primitives";
 
 interface DetailResponse {
@@ -26,6 +27,7 @@ export function MaintenanceDetailModal({
   const qc = useQueryClient();
   const [result, setResult] = useState("");
   const [note, setNote] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const query = useQuery({
     queryKey: ["maintenance-detail", recordId],
@@ -55,6 +57,7 @@ export function MaintenanceDetailModal({
     mutationFn: () => api.del(`/maintenance-records/${recordId}`),
     onSuccess: () => {
       refresh();
+      setDeleting(false);
       onClose();
     },
   });
@@ -63,8 +66,9 @@ export function MaintenanceDetailModal({
   const notes = query.data?.notes ?? [];
 
   return (
-    <Modal
-      open={open}
+    <>
+      <Modal
+        open={open}
       onClose={onClose}
       title="维护记录详情"
       width="max-w-xl"
@@ -73,10 +77,7 @@ export function MaintenanceDetailModal({
           <Button
             variant="ghost"
             icon={<Trash2 size={13} />}
-            loading={del.isPending}
-            onClick={() => {
-              if (confirm("确认删除该维护记录？")) del.mutate();
-            }}
+            onClick={() => setDeleting(true)}
           >
             删除
           </Button>
@@ -177,7 +178,21 @@ export function MaintenanceDetailModal({
           </div>
         </div>
       )}
-    </Modal>
+      </Modal>
+
+      {deleting && (
+        <ConfirmModal
+          open
+          onClose={() => setDeleting(false)}
+          onConfirm={() => del.mutate()}
+          title="删除维护记录"
+          message="确定要删除该维护记录吗？此操作无法撤销。"
+          confirmText="删除"
+          confirmVariant="danger"
+          loading={del.isPending}
+        />
+      )}
+    </>
   );
 }
 

@@ -8,6 +8,7 @@ import { api } from "../lib/api";
 import { fmtDate } from "../lib/format";
 import { useAuth } from "../stores/auth";
 import { Button, ErrorState, Spinner } from "../components/ui/primitives";
+import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { CustomerFormModal } from "../components/customers/CustomerFormModal";
 import { DeploymentsTab } from "../components/customers/DeploymentsTab";
 import { CustomerMaintenanceTab } from "../components/customers/CustomerMaintenanceTab";
@@ -31,6 +32,7 @@ export default function CustomerDetail() {
 
   const [tab, setTab] = useState<Tab>("概览");
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const query = useQuery({
     queryKey: ["customer", id],
@@ -81,11 +83,7 @@ export default function CustomerDetail() {
               <Button
                 variant="ghost"
                 icon={<Trash2 size={13} />}
-                loading={del.isPending}
-                onClick={() => {
-                  if (confirm(`确认删除客户「${customer.name}」？将级联删除其部署/维护/文件。`))
-                    del.mutate();
-                }}
+                onClick={() => setDeleting(true)}
               >
                 删除
               </Button>
@@ -131,6 +129,19 @@ export default function CustomerDetail() {
         onClose={() => setEditing(false)}
         initial={customer}
       />
+
+      {deleting && (
+        <ConfirmModal
+          open
+          onClose={() => setDeleting(false)}
+          onConfirm={() => del.mutate()}
+          title="删除客户"
+          message={`确认删除客户「${customer.name}」？将级联删除其部署、维护记录及文件空间。`}
+          confirmText="删除"
+          confirmVariant="danger"
+          loading={del.isPending}
+        />
+      )}
     </div>
   );
 }

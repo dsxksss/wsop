@@ -5,12 +5,14 @@ import type { CustomerFile } from "@wsop/shared";
 import { api, downloadBlob, uploadFile } from "../../lib/api";
 import { fmtDateTime, fmtSize } from "../../lib/format";
 import { Button, EmptyState, Spinner } from "../ui/primitives";
+import { ConfirmModal } from "../ui/ConfirmModal";
 
 export function FilesTab({ customerId, canWrite }: { customerId: string; canWrite: boolean }) {
   const qc = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<CustomerFile | null>(null);
 
   const query = useQuery({
     queryKey: ["files", customerId],
@@ -49,7 +51,10 @@ export function FilesTab({ customerId, canWrite }: { customerId: string; canWrit
 
   const del = useMutation({
     mutationFn: (id: string) => api.del(`/files/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["files", customerId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["files", customerId] });
+      setDeleting(null);
+    },
   });
 
   return (
@@ -101,9 +106,7 @@ export function FilesTab({ customerId, canWrite }: { customerId: string; canWrit
                 </button>
                 {canWrite && (
                   <button
-                    onClick={() => {
-                      if (confirm(`删除文件「${f.filename}」？`)) del.mutate(f.id);
-                    }}
+                    onClick={() => setDeleting(f)}
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-red-400 hover:bg-zinc-800/40 cursor-pointer"
                     title="删除"
                   >
@@ -115,6 +118,18 @@ export function FilesTab({ customerId, canWrite }: { customerId: string; canWrit
           </div>
         )}
       </div>
+      {deleting && (
+        <ConfirmModal
+          open
+          onClose={() => setDeleting(null)}
+          onConfirm={() => del.mutate(deleting.id)}
+          title="删除文件"
+          message={`确定要删除文件「${deleting.filename}」吗？`}
+          confirmText="删除"
+          confirmVariant="danger"
+          loading={del.isPending}
+        />
+      )}
     </div>
   );
 }
