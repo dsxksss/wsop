@@ -1,6 +1,6 @@
 [package]
 name = "wsop"
-version = "1.2.0"
+version = "1.0.1"
 description = "wsop — 私有化维护客户记录系统"
 authors = ["you"]
 edition = "2021"
