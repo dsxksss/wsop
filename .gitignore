@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 本地草稿 / 数据 / 打包产物（勿提交）
+scratch/
+*.exe
