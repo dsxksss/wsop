@@ -118,8 +118,7 @@ export function AppLayout({
   return (
     <AppLayoutContext.Provider value={value}>
       <div className="app-layout flex w-screen h-screen overflow-hidden bg-[#060a0f] text-zinc-300 antialiased select-none relative">
-        {/* Ambient glass-scene blurs */}
-        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-emerald-500/10 blur-[130px] pointer-events-none" />
+        {/* Ambient glass-scene blur */}
         <div className="absolute -bottom-40 -right-40 w-[700px] h-[700px] rounded-full bg-blue-500/10 blur-[150px] pointer-events-none" />
 
         {/* ---------- Full-height sidebar (desktop) ---------- */}

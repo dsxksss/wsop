@@ -75,8 +75,8 @@ export default function Customers() {
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-zinc-800/50 flex items-center justify-center shrink-0">
-                        <Building2 size={14} className="text-zinc-400" />
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                        <Building2 size={14} className="text-emerald-400" />
                       </div>
                       <div className="min-w-0">
                         <div className="text-white font-medium truncate">{c.name}</div>

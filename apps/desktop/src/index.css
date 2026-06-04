@@ -349,7 +349,8 @@
    Without these they stay dark and clash badly on the light canvas. */
 .light .bg-zinc-800,
 .light .bg-zinc-800\/80,
-.light .bg-zinc-800\/60 {
+.light .bg-zinc-800\/60,
+.light .bg-zinc-800\/50 {
   background-color: rgba(19, 39, 31, 0.08) !important;
 }
 
@@ -382,17 +383,18 @@
   color: var(--color-text-body) !important;
 }
 
+/* 次要文字 / 图标在浅底上调深去灰（icon 多用 zinc-400/500），保留层级。 */
 .light .text-zinc-400 {
-  color: var(--color-text-muted) !important;
+  color: #3a4b43 !important;
 }
 
 .light .text-zinc-500 {
-  color: var(--color-text-dim) !important;
+  color: #4d5f56 !important;
 }
 
 .light .text-zinc-650,
 .light .text-zinc-600 {
-  color: var(--color-text-dim) !important;
+  color: #586a61 !important;
 }
 
 /* Custom font shortcuts */

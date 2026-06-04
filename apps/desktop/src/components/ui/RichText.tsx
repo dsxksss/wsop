@@ -444,7 +444,7 @@ export function RichTextEditor({
               transformOrigin: "left center",
               willChange: "transform",
             }}
-            className="z-[70] overflow-hidden rounded-2xl border border-zinc-800/70 bg-[#0b0e14]/95 backdrop-blur-md shadow-2xl flex flex-col"
+            className="z-[70] overflow-hidden rounded-2xl border border-zinc-800/70 bg-[#0c0f15] backdrop-blur-md shadow-2xl flex flex-col"
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/60 shrink-0">
               <span className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
@@ -458,7 +458,7 @@ export function RichTextEditor({
                   closePreview();
                   taRef.current?.blur();
                 }}
-                className="h-7 w-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60"
+                className="h-7 w-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
               >
                 <X size={15} />
               </button>
