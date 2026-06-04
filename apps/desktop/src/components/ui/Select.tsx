@@ -45,7 +45,7 @@ export function Select({
         <RSelect.Content
           position="popper"
           sideOffset={6}
-          className="z-[60] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-white/10 bg-[#0c0f15] shadow-2xl overflow-hidden"
+          className="wsop-popover z-[60] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-white/10 bg-[#0c0f15] shadow-2xl overflow-hidden"
         >
           <RSelect.Viewport className="p-1 max-h-64">
             {options.map((o) => (

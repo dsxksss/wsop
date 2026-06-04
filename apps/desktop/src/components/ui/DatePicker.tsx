@@ -111,7 +111,7 @@ export function DatePicker({
         <Popover.Content
           align="start"
           sideOffset={5}
-          className="z-[60] w-72 p-4 rounded-2xl border border-zinc-800/70 bg-[#0c0f15] shadow-2xl outline-none"
+          className="wsop-popover z-[60] w-72 p-4 rounded-2xl border border-zinc-800/70 bg-[#0c0f15] shadow-2xl outline-none"
         >
           {/* Calendar Header */}
           <div className="flex items-center justify-between mb-4">

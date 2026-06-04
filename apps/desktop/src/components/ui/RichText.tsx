@@ -425,14 +425,15 @@ export function RichTextEditor({
         {previewOpen && panel && (
           <motion.div
             onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
-            initial={{ scaleX: 0, scaleY: 0.82, opacity: 0 }}
-            animate={{ scaleX: 1, scaleY: 1, opacity: 1 }}
-            exit={{ scaleX: 0, scaleY: 0.82, opacity: 0 }}
+            initial={{ scaleX: 0, scaleY: 0.82, opacity: 0, filter: "blur(8px)" }}
+            animate={{ scaleX: 1, scaleY: 1, opacity: 1, filter: "blur(0px)" }}
+            exit={{ scaleX: 0, scaleY: 0.82, opacity: 0, filter: "blur(8px)" }}
             transition={{
               type: "spring",
               bounce: 0.32,
               duration: 0.5,
               opacity: { duration: 0.14 },
+              filter: { duration: 0.22 },
             }}
             style={{
               position: "fixed",

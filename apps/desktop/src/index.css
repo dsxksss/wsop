@@ -3,6 +3,20 @@
 @theme {
   --color-zinc-500: #8a99ad; /* 映射到更亮的瓦灰色，提升暗黑模式下的次级标签/文本可读性 */
   --color-zinc-600: #707f94; /* 映射到更亮的灰蓝色，用于时间等次要元数据 */
+
+  /* ---- Linear 设计系统色板（渐进对齐用，新命名空间，不覆盖现有工具类）----
+     生成 bg-ln-* / text-ln-* / border-ln-* 等工具类，可在新 UI 中按需采用。 */
+  --color-ln-primary: #5e6ad2; /* 主交互色：链接 / 焦点环 */
+  --color-ln-indigo: #6366f1;
+  --color-ln-purple: #8b5cf6;
+  --color-ln-red: #eb5757; /* 破坏性 / 错误 */
+  --color-ln-surface: #0f1011; /* 主背景 */
+  --color-ln-surface-2: #08090a; /* 头/尾等更深一档 */
+  --color-ln-fg: #f7f8f8; /* 主文本 */
+  --color-ln-fg-2: #d0d6e0; /* 次文本 */
+  --color-ln-fg-muted: #8a8f98; /* 占位 / 禁用 / 三级 */
+  --color-ln-border: #2a2e33; /* 主分隔边框 */
+  --color-ln-border-subtle: #24282c; /* 组件内更细分隔 */
 }
 
 @import "@fontsource/space-grotesk/300.css";
@@ -48,6 +62,34 @@
     --glass-card-bg: rgba(15, 21, 31, 0.5);
     --glass-card-border: rgba(255, 255, 255, 0.05);
     --glass-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+    /* ---- Linear 设计系统 tokens（渐进对齐参考；颜色见 @theme 的 --color-ln-*）---- */
+    /* 圆角刻度：6px 控件 / 12px 容器 / 4px 小元素 / 全圆胶囊 */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 12px;
+    --radius-full: 9999px;
+    /* 间距：4px 基准（4·8·12·16·20·24·32） */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    /* 字重：正文 400 / 中 510 / 强调 590 */
+    --fw-body: 400;
+    --fw-medium: 510;
+    --fw-strong: 590;
+    /* 字间距：标题收紧、正文微收 */
+    --tracking-tight: -0.02em;
+    --tracking-snug: -0.011em;
+    /* 高程：Linear 偏好 1px 边框 + inset，弱化 drop shadow */
+    --elevation-border: 0 0 0 1px rgba(0, 0, 0, 0.2);
+    --elevation-inset: inset 0 0 12px 0 rgba(0, 0, 0, 0.2);
+    --elevation-focus: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(94, 106, 210, 0.3);
+    /* 焦点环（基于主交互色） */
+    --ring-primary: 0 0 0 3px rgba(94, 106, 210, 0.3);
   }
 
   .light {
@@ -533,16 +575,40 @@ input::placeholder {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+/* 丝滑弹出配方：opacity + scale + y 位移 + blur（从虚到实、轻轻落位）。 */
 @keyframes wsop-content-in {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: 0; transform: scale(0.92) translateY(10px); filter: blur(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
 }
 .wsop-dialog-overlay[data-state="open"] {
   animation: wsop-overlay-in 0.18s ease-out;
 }
-/* 与富文本预览面板一致的单次过冲回弹（果冻弹出），居中缩放、不叠加二次弹跳。 */
+/* 带轻微过冲的回弹，叠加 y + blur 的丝滑落位。 */
 .wsop-dialog-content[data-state="open"] {
-  animation: wsop-content-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: wsop-content-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ---------------- 丝滑 popover 配方（Select / DatePicker 等 Radix 浮层） ---------------- */
+/* opacity + scale + y + blur；从触发点方向轻轻展开。 */
+@keyframes wsop-popover-in {
+  from { opacity: 0; transform: scale(0.96) translateY(-6px); filter: blur(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+}
+@keyframes wsop-popover-in-up {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); filter: blur(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+}
+.wsop-popover[data-state="open"] {
+  /* 以触发器为缩放原点（Radix 提供该 CSS 变量），不可用时退回顶部居中。 */
+  transform-origin: var(
+    --radix-popover-content-transform-origin,
+    var(--radix-select-content-transform-origin, center top)
+  );
+  animation: wsop-popover-in 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* 向上弹出时从下方落入。 */
+.wsop-popover[data-state="open"][data-side="top"] {
+  animation-name: wsop-popover-in-up;
 }
 
 /* ---------------- 富文本（维护记录 content / result / notes） ---------------- */

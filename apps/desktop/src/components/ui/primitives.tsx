@@ -34,7 +34,7 @@ export function Button({
     <button
       {...rest}
       disabled={disabled || loading}
-      className={`h-9 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${VARIANTS[variant]} ${className}`}
+      className={`h-9 px-4 rounded-md text-[13px] font-medium flex items-center justify-center gap-1.5 transition-[transform,background-color,box-shadow] duration-150 cursor-pointer active:scale-[0.97] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-primary)] disabled:opacity-50 disabled:cursor-not-allowed ${VARIANTS[variant]} ${className}`}
     >
       {loading ? <Loader2 size={14} className="animate-spin" /> : icon}
       {children}
@@ -45,7 +45,7 @@ export function Button({
 /* ---------------- Field / Input / Textarea / Select ---------------- */
 
 const INPUT_CLS =
-  "w-full h-10 px-3 rounded-xl bg-zinc-950/40 border border-zinc-800/60 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-emerald-500/50 transition-colors";
+  "w-full h-10 px-3 rounded-md bg-zinc-950/40 border border-zinc-800/60 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-ln-primary focus:[box-shadow:var(--ring-primary)] transition-[border-color,box-shadow] duration-150";
 
 export function Field({
   label,
