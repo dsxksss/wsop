@@ -64,7 +64,7 @@ Sidebar.Item = function SidebarItem({
     <button
       onClick={onClick}
       title={!isSidebarOpen ? label : undefined}
-      className={`group relative flex items-center gap-3 rounded-xl px-2.5 h-9 text-sm transition-colors cursor-pointer outline-none ${
+      className={`group relative flex items-center gap-3 rounded-md px-2.5 h-9 text-sm transition-colors cursor-pointer outline-none ${
         active
           ? 'bg-emerald-500/12 text-emerald-300'
           : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/40'

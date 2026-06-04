@@ -33,7 +33,7 @@ export function Select({
   return (
     <RSelect.Root value={toRadix(value)} onValueChange={(v) => onChange(fromRadix(v))} disabled={disabled}>
       <RSelect.Trigger
-        className={`h-10 px-3 rounded-xl bg-zinc-950/40 border border-zinc-800/60 text-sm text-white outline-none focus:border-emerald-500/50 transition-colors flex items-center justify-between gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed data-[placeholder]:text-zinc-600 ${className}`}
+        className={`h-10 px-3 rounded-md bg-zinc-950/40 border border-zinc-800/60 text-sm text-white outline-none focus:border-ln-primary focus:[box-shadow:var(--ring-primary)] transition-[border-color,box-shadow] duration-150 flex items-center justify-between gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed data-[placeholder]:text-zinc-600 ${className}`}
         aria-label={placeholder ?? "选择"}
       >
         <RSelect.Value placeholder={placeholder} />

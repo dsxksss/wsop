@@ -98,7 +98,7 @@ export function DatePicker({
       <Popover.Trigger asChild>
         <button
           type="button"
-          className={`w-full h-10 px-3.5 rounded-xl bg-zinc-950/40 border border-zinc-800/60 text-sm text-left flex items-center justify-between transition-colors focus:border-emerald-500/50 outline-none cursor-pointer ${
+          className={`w-full h-10 px-3.5 rounded-md bg-zinc-950/40 border border-zinc-800/60 text-sm text-left flex items-center justify-between transition-[border-color,box-shadow] duration-150 focus:border-ln-primary focus:[box-shadow:var(--ring-primary)] outline-none cursor-pointer ${
             value ? "text-zinc-200" : "text-zinc-500"
           } ${className}`}
         >
