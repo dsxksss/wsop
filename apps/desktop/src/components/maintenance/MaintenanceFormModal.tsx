@@ -5,10 +5,11 @@ import { api, ApiError } from "../../lib/api";
 import { MAINTENANCE_TYPE_OPTIONS } from "../../lib/format";
 import { useAuth } from "../../stores/auth";
 import { Modal } from "../ui/Modal";
-import { Button, Field, Input, Textarea } from "../ui/primitives";
+import { Button, Field, Input } from "../ui/primitives";
 import { Select } from "../ui/Select";
 import { DatePicker } from "../ui/DatePicker";
 import { AssigneeSelector } from "../ui/AssigneeSelector";
+import { RichTextEditor } from "../ui/RichText";
 
 /** 新建维护记录。fixedCustomerId 由客户详情页传入；全局页则展示客户选择。 */
 export function MaintenanceFormModal({
@@ -54,6 +55,7 @@ export function MaintenanceFormModal({
         deployment_id: deploymentId || null,
         assignee_ids: assigneeIds,
         content: content || null,
+        content_format: "markdown",
         maintained_at: maintainedAt ? new Date(maintainedAt).toISOString() : null,
       }),
     onSuccess: () => {
@@ -160,7 +162,7 @@ export function MaintenanceFormModal({
           )}
         </Field>
         <Field label="维护内容">
-          <Textarea value={content} onChange={(e) => setContent(e.target.value)} />
+          <RichTextEditor value={content} onChange={setContent} />
         </Field>
         {error && (
           <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">

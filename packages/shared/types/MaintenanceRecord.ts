@@ -4,4 +4,12 @@ import type { UserOptionDto } from "./UserOptionDto";
 /**
  * 维护记录完整行 / DTO（详情用）。
  */
-export type MaintenanceRecord = { id: string, customer_id: string, deployment_id: string | null, title: string, type: string, status: string, content: string | null, result: string | null, maintained_at: string, completed_at: string | null, created_by: string | null, created_at: string, updated_at: string, assignees: Array<UserOptionDto> | null, };
+export type MaintenanceRecord = { id: string, customer_id: string, deployment_id: string | null, title: string, type: string, status: string, content: string | null, result: string | null, 
+/**
+ * 'text' | 'html'：content 的存储格式。
+ */
+content_format: string, 
+/**
+ * 'text' | 'html'：result 的存储格式。
+ */
+result_format: string, maintained_at: string, completed_at: string | null, created_by: string | null, created_at: string, updated_at: string, assignees: Array<UserOptionDto> | null, };

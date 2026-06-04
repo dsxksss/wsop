@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Send, Trash2 } from "lucide-react";
+import { CheckCircle2, RotateCcw, Send, Trash2 } from "lucide-react";
 import type { MaintenanceNote, MaintenanceRecord, UserOptionDto } from "@wsop/shared";
 import { api } from "../../lib/api";
 import { fmtDateTime, maintenanceTypeLabel } from "../../lib/format";
 import { Modal } from "../ui/Modal";
 import { ConfirmModal } from "../ui/ConfirmModal";
-import { Button, Field, Spinner, StatusBadge, Textarea } from "../ui/primitives";
+import { Button, Field, Spinner, StatusBadge } from "../ui/primitives";
 import { AssigneeSelector } from "../ui/AssigneeSelector";
+import { RichTextContent, RichTextEditor, isRichTextEmpty } from "../ui/RichText";
 
 interface DetailResponse {
   record: MaintenanceRecord;
@@ -59,11 +60,18 @@ export function MaintenanceDetailModal({
 
   const complete = useMutation({
     mutationFn: () =>
-      api.patch(`/maintenance-records/${recordId}/complete`, { result: result || null }),
+      api.patch(`/maintenance-records/${recordId}/complete`, {
+        result: result || null,
+        result_format: "markdown",
+      }),
+    onSuccess: refresh,
+  });
+  const reopen = useMutation({
+    mutationFn: () => api.patch(`/maintenance-records/${recordId}/reopen`, {}),
     onSuccess: refresh,
   });
   const addNote = useMutation({
-    mutationFn: () => api.post(`/maintenance-records/${recordId}/notes`, { note }),
+    mutationFn: () => api.post(`/maintenance-records/${recordId}/notes`, { note, note_format: "markdown" }),
     onSuccess: () => {
       setNote("");
       refresh();
@@ -106,7 +114,28 @@ export function MaintenanceDetailModal({
         <div className="flex flex-col gap-4">
           <div className="flex items-start justify-between gap-3">
             <h4 className="text-base font-bold text-white">{record.title}</h4>
-            <StatusBadge status={record.status} />
+            <div className="flex items-center gap-2 shrink-0">
+              {canWrite && record.status === "in_progress" && (
+                <Button
+                  icon={<CheckCircle2 size={13} />}
+                  loading={complete.isPending}
+                  onClick={() => complete.mutate()}
+                >
+                  标记完成
+                </Button>
+              )}
+              {canWrite && record.status === "done" && (
+                <Button
+                  variant="subtle"
+                  icon={<RotateCcw size={13} />}
+                  loading={reopen.isPending}
+                  onClick={() => reopen.mutate()}
+                >
+                  撤销完成
+                </Button>
+              )}
+              <StatusBadge status={record.status} />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3.5 text-xs items-end">
@@ -141,39 +170,28 @@ export function MaintenanceDetailModal({
           {record.content && (
             <div>
               <div className="text-[11px] text-zinc-500 mb-1">维护内容</div>
-              <p className="text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">
-                {record.content}
-              </p>
+              <RichTextContent html={record.content} format={record.content_format} />
             </div>
           )}
 
           {record.result && (
             <div className="rounded-xl bg-emerald-500/8 border border-emerald-500/15 p-3">
               <div className="text-[11px] text-emerald-400/80 mb-1">结果 / 总结</div>
-              <p className="text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">
-                {record.result}
-              </p>
+              <RichTextContent html={record.result} format={record.result_format} />
             </div>
           )}
 
-          {/* complete action */}
+          {/* 结果 / 总结输入（在右上角「标记完成」时一并提交） */}
           {canWrite && record.status === "in_progress" && (
-            <div className="rounded-xl border border-zinc-800/60 p-3 flex flex-col gap-2.5">
-              <Field label="结果 / 总结（标记完成时填写）">
-                <Textarea
+            <div className="rounded-xl border border-zinc-800/60 p-3">
+              <Field label="结果 / 总结（点右上角「标记完成」时一并保存）">
+                <RichTextEditor
                   value={result}
-                  onChange={(e) => setResult(e.target.value)}
-                  placeholder="本次维护的结论…"
+                  onChange={setResult}
+                  placeholder="本次维护的结论，可粘贴截图…"
+                  minHeight={100}
                 />
               </Field>
-              <Button
-                icon={<CheckCircle2 size={14} />}
-                loading={complete.isPending}
-                onClick={() => complete.mutate()}
-                className="self-start"
-              >
-                标记完成
-              </Button>
             </div>
           )}
 
@@ -187,27 +205,26 @@ export function MaintenanceDetailModal({
                     <span className="text-zinc-400">{n.author_username ?? "—"}</span>
                     <span className="font-mono-data">{fmtDateTime(n.created_at)}</span>
                   </div>
-                  <p className="text-xs text-zinc-200 whitespace-pre-wrap">{n.note}</p>
+                  <RichTextContent html={n.note} format={n.note_format} className="text-xs" />
                 </div>
               ))}
               {notes.length === 0 && <div className="text-xs text-zinc-600">暂无跟进。</div>}
             </div>
 
             {canWrite && (
-              <div className="flex items-end gap-2 mt-2.5">
-                <div className="flex-1">
-                  <Textarea
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="添加跟进…"
-                    className="min-h-[40px]"
-                  />
-                </div>
+              <div className="flex flex-col gap-2 mt-2.5">
+                <RichTextEditor
+                  value={note}
+                  onChange={setNote}
+                  placeholder="添加跟进，可粘贴截图…"
+                  minHeight={72}
+                />
                 <Button
                   icon={<Send size={13} />}
                   loading={addNote.isPending}
-                  disabled={!note.trim()}
+                  disabled={isRichTextEmpty(note)}
                   onClick={() => addNote.mutate()}
+                  className="self-end"
                 >
                   发送
                 </Button>

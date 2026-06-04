@@ -3,4 +3,8 @@
 /**
  * 维护跟进备注。
  */
-export type MaintenanceNote = { id: string, record_id: string, author_id: string | null, author_username: string | null, note: string, created_at: string, };
+export type MaintenanceNote = { id: string, record_id: string, author_id: string | null, author_username: string | null, note: string, 
+/**
+ * 'text' | 'html'：note 的存储格式。
+ */
+note_format: string, created_at: string, };

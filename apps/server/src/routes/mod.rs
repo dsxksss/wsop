@@ -60,6 +60,10 @@ pub fn router(state: AppState) -> Router {
             patch(maintenance::complete),
         )
         .route(
+            "/maintenance-records/{id}/reopen",
+            patch(maintenance::reopen),
+        )
+        .route(
             "/maintenance-records/{id}/notes",
             post(maintenance::add_note),
         )

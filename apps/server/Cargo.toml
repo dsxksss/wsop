@@ -1,6 +1,6 @@
 [package]
 name = "wsop-server"
-version = "1.1.1"
+version = "1.2.0"
 description = "wsop 私有化维护客户记录系统 — 中心服务后端"
 edition = "2021"
 

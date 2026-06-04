@@ -20,6 +20,17 @@ fn valid_type(s: &str) -> bool {
     VALID_TYPES.contains(&s)
 }
 
+/// 内容格式标记：'text'（纯文本）/ 'markdown'（Markdown 源码）/ 'html'（旧富文本）。
+/// 不传时回退到 'text'，保证向后兼容。
+fn norm_format(s: &Option<String>) -> AppResult<String> {
+    match s.as_deref() {
+        None | Some("text") => Ok("text".to_string()),
+        Some("markdown") => Ok("markdown".to_string()),
+        Some("html") => Ok("html".to_string()),
+        Some(_) => Err(AppError::BadRequest("无效的内容格式".into())),
+    }
+}
+
 async fn fetch_assignees(db: &sqlx::SqlitePool, record_id: &str) -> AppResult<Vec<crate::models::user::UserOptionDto>> {
     let rows = sqlx::query_as::<_, (String, String)>(
         "SELECT u.id, u.username FROM users u \
@@ -121,7 +132,7 @@ pub async fn get(
     }
 
     let notes = sqlx::query_as::<_, MaintenanceNote>(
-        "SELECT n.id, n.record_id, n.author_id, u.username AS author_username, n.note, n.created_at \
+        "SELECT n.id, n.record_id, n.author_id, u.username AS author_username, n.note, n.note_format, n.created_at \
          FROM maintenance_notes n LEFT JOIN users u ON u.id = n.author_id \
          WHERE n.record_id = ? ORDER BY n.created_at ASC",
     )
@@ -141,11 +152,15 @@ pub struct CreateInput {
     pub type_: String,
     pub assignee_ids: Option<Vec<String>>,
     pub content: Option<String>,
+    /// content 的格式：'text'（默认）或 'html'。
+    pub content_format: Option<String>,
     /// 维护时间（ISO8601）；不传则用当前时间。
     pub maintained_at: Option<String>,
     /// 可选：直接以某状态创建（默认 in_progress）。
     pub status: Option<String>,
     pub result: Option<String>,
+    /// result 的格式：'text'（默认）或 'html'。
+    pub result_format: Option<String>,
 }
 
 /// POST /maintenance-records — 新建维护记录（admin / engineer）。
@@ -190,6 +205,8 @@ pub async fn create(
     if status != "in_progress" && status != "done" {
         return Err(AppError::BadRequest("无效状态".into()));
     }
+    let content_format = norm_format(&req.content_format)?;
+    let result_format = norm_format(&req.result_format)?;
     let now = Utc::now().to_rfc3339();
     let maintained_at = req.maintained_at.clone().unwrap_or_else(|| now.clone());
     let completed_at = if status == "done" {
@@ -203,9 +220,9 @@ pub async fn create(
 
     sqlx::query(
         "INSERT INTO maintenance_records \
-         (id, customer_id, deployment_id, title, type, status, content, result, \
+         (id, customer_id, deployment_id, title, type, status, content, result, content_format, result_format, \
           maintained_at, completed_at, created_by, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(&req.customer_id)
@@ -215,6 +232,8 @@ pub async fn create(
     .bind(status)
     .bind(&req.content)
     .bind(&req.result)
+    .bind(&content_format)
+    .bind(&result_format)
     .bind(&maintained_at)
     .bind(&completed_at)
     .bind(&user.id)
@@ -257,6 +276,8 @@ pub struct UpdateInput {
     pub deployment_id: Option<String>,
     pub assignee_ids: Option<Vec<String>>,
     pub content: Option<String>,
+    /// content 的格式：'text'（默认）或 'html'。仅在提供 content 时生效。
+    pub content_format: Option<String>,
     pub maintained_at: Option<String>,
 }
 
@@ -302,6 +323,8 @@ pub async fn update(
     }
     if req.content.is_some() {
         record.content = req.content;
+        // 仅在同时更新 content 时才更新其格式（默认回退 text）。
+        record.content_format = norm_format(&req.content_format)?;
     }
     if let Some(m) = req.maintained_at {
         record.maintained_at = m;
@@ -312,12 +335,13 @@ pub async fn update(
 
     sqlx::query(
         "UPDATE maintenance_records SET title = ?, type = ?, deployment_id = ?, \
-         content = ?, maintained_at = ?, updated_at = ? WHERE id = ?",
+         content = ?, content_format = ?, maintained_at = ?, updated_at = ? WHERE id = ?",
     )
     .bind(&record.title)
     .bind(&record.r#type)
     .bind(&record.deployment_id)
     .bind(&record.content)
+    .bind(&record.content_format)
     .bind(&record.maintained_at)
     .bind(&now)
     .bind(&id)
@@ -349,6 +373,8 @@ pub async fn update(
 #[derive(Deserialize)]
 pub struct CompleteInput {
     pub result: Option<String>,
+    /// result 的格式：'text'（默认）或 'html'。
+    pub result_format: Option<String>,
 }
 
 /// PATCH /maintenance-records/{id}/complete — 标记完成（写 result + completed_at，状态转 done）。
@@ -377,12 +403,18 @@ pub async fn complete(
         }
     }
 
+    // 仅在本次提供 result 时一并更新其格式，否则保留原值。
+    let result_format = match &req.result {
+        Some(_) => Some(norm_format(&req.result_format)?),
+        None => None,
+    };
     let now = Utc::now().to_rfc3339();
     sqlx::query(
         "UPDATE maintenance_records SET status = 'done', result = COALESCE(?, result), \
-         completed_at = ?, updated_at = ? WHERE id = ?",
+         result_format = COALESCE(?, result_format), completed_at = ?, updated_at = ? WHERE id = ?",
     )
     .bind(&req.result)
+    .bind(&result_format)
     .bind(&now)
     .bind(&now)
     .bind(&id)
@@ -393,6 +425,54 @@ pub async fn complete(
         &state.db,
         Some(&user.id),
         "complete",
+        "maintenance_record",
+        Some(&id),
+        None,
+        &meta,
+    )
+    .await?;
+    fetch_record(&state, &id).await.map(Json)
+}
+
+/// PATCH /maintenance-records/{id}/reopen — 撤销完成（done → in_progress，清空完成时间）。
+/// 用于误点「标记完成」后回退；保留已填写的 result。
+pub async fn reopen(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+    meta: RequestMeta,
+) -> AppResult<Json<MaintenanceRecord>> {
+    user.require_action("write:maintenance")?;
+    let record = fetch_record(&state, &id).await?; // 确认存在
+
+    let has_assigned_scope = user.role_id != "admin" && user.permissions.data_scope == "assigned";
+    if has_assigned_scope {
+        let is_assigned: Option<(String,)> = sqlx::query_as(
+            "SELECT customer_id FROM customer_assignments WHERE customer_id = ? AND user_id = ?"
+        )
+        .bind(&record.customer_id)
+        .bind(&user.id)
+        .fetch_optional(&state.db)
+        .await?;
+        if is_assigned.is_none() {
+            return Err(AppError::Forbidden);
+        }
+    }
+
+    let now = Utc::now().to_rfc3339();
+    sqlx::query(
+        "UPDATE maintenance_records SET status = 'in_progress', completed_at = NULL, updated_at = ? \
+         WHERE id = ?",
+    )
+    .bind(&now)
+    .bind(&id)
+    .execute(&state.db)
+    .await?;
+
+    audit::record(
+        &state.db,
+        Some(&user.id),
+        "reopen",
         "maintenance_record",
         Some(&id),
         None,
@@ -441,6 +521,8 @@ pub async fn delete(
 #[derive(Deserialize)]
 pub struct NoteInput {
     pub note: String,
+    /// note 的格式：'text'（默认）或 'html'。
+    pub note_format: Option<String>,
 }
 
 /// POST /maintenance-records/{id}/notes — 追加跟进备注（admin / engineer）。
@@ -471,16 +553,18 @@ pub async fn add_note(
         }
     }
 
+    let note_format = norm_format(&req.note_format)?;
     let note_id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     sqlx::query(
-        "INSERT INTO maintenance_notes (id, record_id, author_id, note, created_at) \
-         VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO maintenance_notes (id, record_id, author_id, note, note_format, created_at) \
+         VALUES (?, ?, ?, ?, ?, ?)",
     )
     .bind(&note_id)
     .bind(&id)
     .bind(&user.id)
     .bind(req.note.trim())
+    .bind(&note_format)
     .bind(&now)
     .execute(&state.db)
     .await?;
@@ -497,7 +581,7 @@ pub async fn add_note(
     .await?;
 
     let note = sqlx::query_as::<_, MaintenanceNote>(
-        "SELECT n.id, n.record_id, n.author_id, u.username AS author_username, n.note, n.created_at \
+        "SELECT n.id, n.record_id, n.author_id, u.username AS author_username, n.note, n.note_format, n.created_at \
          FROM maintenance_notes n LEFT JOIN users u ON u.id = n.author_id WHERE n.id = ?",
     )
     .bind(&note_id)

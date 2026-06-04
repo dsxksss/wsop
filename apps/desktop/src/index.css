@@ -534,12 +534,84 @@ input::placeholder {
   to { opacity: 1; }
 }
 @keyframes wsop-content-in {
-  from { opacity: 0; transform: scale(0.96); }
+  from { opacity: 0; transform: scale(0.9); }
   to { opacity: 1; transform: scale(1); }
 }
 .wsop-dialog-overlay[data-state="open"] {
-  animation: wsop-overlay-in 0.15s ease-out;
+  animation: wsop-overlay-in 0.18s ease-out;
 }
+/* 与富文本预览面板一致的单次过冲回弹（果冻弹出），居中缩放、不叠加二次弹跳。 */
 .wsop-dialog-content[data-state="open"] {
-  animation: wsop-content-in 0.15s ease-out;
+  animation: wsop-content-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+/* ---------------- 富文本（维护记录 content / result / notes） ---------------- */
+
+/* Markdown 只读渲染（维护记录 content / result / notes 的查看样式）。 */
+.rich-content {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: #e4e4e7; /* zinc-200 */
+  word-break: break-word;
+  overflow-wrap: anywhere; /* 超长 URL / base64 也能换行，避免撑出横向滚动 */
+}
+/* 首尾元素去外边距，避免和容器内边距叠加出多余空白 */
+.rich-content > :first-child { margin-top: 0; }
+.rich-content > :last-child { margin-bottom: 0; }
+.rich-content :is(p, ul, ol, blockquote, pre) { margin: 0.4em 0; }
+.rich-content :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 700;
+  color: #fff;
+  margin: 0.7em 0 0.3em;
+  line-height: 1.3;
+}
+.rich-content h1 { font-size: 1.2rem; }
+.rich-content h2 { font-size: 1.08rem; }
+.rich-content h3 { font-size: 0.98rem; }
+.rich-content :is(h4, h5, h6) { font-size: 0.9rem; }
+.rich-content ul { list-style: disc; padding-left: 1.4em; }
+.rich-content ol { list-style: decimal; padding-left: 1.4em; }
+.rich-content li { margin: 0.15em 0; }
+.rich-content strong { font-weight: 700; color: #fff; }
+.rich-content em { font-style: italic; }
+.rich-content del { opacity: 0.6; }
+.rich-content a { color: #34d399; text-decoration: underline; }
+.rich-content hr {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0.9em 0;
+}
+.rich-content code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.1em 0.35em;
+  border-radius: 0.3rem;
+}
+.rich-content pre {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.6rem;
+  padding: 0.7em 0.9em;
+  overflow-x: auto;
+}
+.rich-content pre code {
+  background: none;
+  padding: 0;
+}
+.rich-content blockquote {
+  border-left: 3px solid rgba(16, 185, 129, 0.4);
+  padding-left: 0.8em;
+  color: #a1a1aa; /* zinc-400 */
+}
+.rich-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 0.3em 0;
+  cursor: zoom-in;
+}
+.light .rich-content { color: #27272a; }
+.light .rich-content :is(h1, h2, h3, h4, h5, h6) { color: #18181b; }
+.light .rich-content strong { color: #18181b; }

@@ -16,6 +16,10 @@ pub struct MaintenanceRecord {
     pub status: String,
     pub content: Option<String>,
     pub result: Option<String>,
+    /// 'text' | 'html'：content 的存储格式。
+    pub content_format: String,
+    /// 'text' | 'html'：result 的存储格式。
+    pub result_format: String,
     pub maintained_at: String,
     pub completed_at: Option<String>,
     pub created_by: Option<String>,
@@ -54,5 +58,7 @@ pub struct MaintenanceNote {
     pub author_id: Option<String>,
     pub author_username: Option<String>,
     pub note: String,
+    /// 'text' | 'html'：note 的存储格式。
+    pub note_format: String,
     pub created_at: String,
 }
