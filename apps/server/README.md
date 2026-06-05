@@ -66,6 +66,7 @@ SEED_DEMO=1 pnpm server:dev      # 或在 .env 里取消注释 SEED_DEMO=1
 | PUT | `/maintenance-records/{id}` | 写权限 | 编辑维护记录 |
 | DELETE | `/maintenance-records/{id}` | 写权限 | 删除 |
 | PATCH | `/maintenance-records/{id}/complete` | 写权限 | 标记完成（写 result + completed_at → 状态 done） |
+| PATCH | `/maintenance-records/{id}/reopen` | 写权限 | 撤销完成（done → in_progress，清空 completed_at，保留 result） |
 | POST | `/maintenance-records/{id}/notes` | 写权限 | 追加跟进备注 |
 | GET | `/customers/{id}/files` | 已登录 | 文件列表，支持 `?folder` 过滤 |
 | POST | `/customers/{id}/files` | 写权限 | 上传文件（multipart：`file` + 可选 `folder`） |
