@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Moon, Sun, X } from "lucide-react";
-import { pingHealth } from "../../lib/api";
+import { api, pingHealth } from "../../lib/api";
 import { API_BASE } from "../../lib/config";
+import { useAuth } from "../../stores/auth";
 import { useSettings } from "../../stores/settings";
 import { Modal } from "./Modal";
 import { Button, Field, Input } from "./primitives";
@@ -17,6 +18,17 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   const [test, setTest] = useState<TestState>("idle");
   const [saving, setSaving] = useState(false);
 
+  const isAdmin = useAuth((s) => s.user?.role === "admin");
+  const dueQuery = useQuery({
+    queryKey: ["settings", "maintenance-due"],
+    queryFn: () => api.get<{ months: number }>("/settings/maintenance-due"),
+    enabled: open && isAdmin,
+  });
+  const [months, setMonths] = useState("");
+  useEffect(() => {
+    if (dueQuery.data) setMonths(String(dueQuery.data.months));
+  }, [dueQuery.data]);
+
   const runTest = async () => {
     setTest("testing");
     const ok = await pingHealth(url);
@@ -26,6 +38,13 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   const save = async () => {
     setSaving(true);
     try {
+      // 管理员且阈值有改动时，先保存维护提醒阈值
+      if (isAdmin && dueQuery.data && months !== String(dueQuery.data.months)) {
+        const n = Number(months);
+        if (Number.isInteger(n) && n >= 1 && n <= 120) {
+          await api.put("/settings/maintenance-due", { months: n });
+        }
+      }
       await setApiBaseUrl(url);
       // 后端可能已切换：清空缓存，强制各页面用新地址重新拉取
       qc.clear();
@@ -93,6 +112,26 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
             </Button>
           </div>
         </Field>
+
+        {/* 维护提醒阈值（仅管理员） */}
+        {isAdmin && (
+          <Field label="维护提醒阈值（月）">
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={1}
+                max={120}
+                value={months}
+                onChange={(e) => setMonths(e.target.value)}
+                placeholder="6"
+                className="w-28"
+              />
+              <span className="text-[11px] text-zinc-500">
+                客户超过该月数未完成维护时，自动提醒指派运维联系客户。
+              </span>
+            </div>
+          </Field>
+        )}
 
         {/* 测试结果 */}
         {test === "ok" && (

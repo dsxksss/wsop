@@ -5,6 +5,8 @@ pub mod deployments;
 pub mod files;
 pub mod health;
 pub mod maintenance;
+pub mod notifications;
+pub mod settings;
 pub mod users;
 pub mod roles;
 
@@ -74,5 +76,13 @@ pub fn router(state: AppState) -> Router {
         .route("/files/{id}/download", get(files::download))
         .route("/files/{id}", axum::routing::delete(files::delete))
         .route("/audit-logs", get(audit_logs::list))
+        .route("/notifications", get(notifications::list))
+        .route("/notifications/unread-count", get(notifications::unread_count))
+        .route("/notifications/{id}/read", patch(notifications::mark_read))
+        .route("/notifications/read-all", post(notifications::mark_all_read))
+        .route(
+            "/settings/maintenance-due",
+            get(settings::get_maintenance_due).put(settings::update_maintenance_due),
+        )
         .with_state(state)
 }

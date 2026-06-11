@@ -4,6 +4,7 @@ mod config;
 mod db;
 mod error;
 mod models;
+mod notify;
 mod routes;
 mod seed_demo;
 mod state;
@@ -51,6 +52,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tracing::warn!("SEED_DEMO failed: {e}");
         }
     }
+
+    // 维护到期提醒后台扫描（启动后先扫一次，之后每小时一次）。
+    notify::spawn_scanner(state.db.clone());
 
     let app = routes::router(state.clone())
         .layer(DefaultBodyLimit::max(64 * 1024 * 1024)) // 允许最大 64MB 上传

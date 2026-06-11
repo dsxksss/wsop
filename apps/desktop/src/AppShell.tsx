@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { AppLayout, useSidebar } from "./components/layout/AppLayout";
 import { Sidebar } from "./components/layout/Sidebar";
+import { NotificationBell } from "./components/layout/NotificationBell";
 import { WindowControls } from "./components/layout/WindowControls";
 import { Logo } from "./components/ui/Logo";
 import { SettingsModal } from "./components/ui/SettingsModal";
@@ -119,6 +120,7 @@ export default function AppShell() {
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            <NotificationBell />
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="w-7 h-7 rounded-lg hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200 flex items-center justify-center transition-all cursor-pointer outline-none active:scale-95"

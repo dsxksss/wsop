@@ -16,3 +16,4 @@ export type { UserOptionDto } from "./types/UserOptionDto";
 export type { RolePermissions } from "./types/RolePermissions";
 export type { RoleDto } from "./types/RoleDto";
 export type { RoleResponseDto } from "./types/RoleResponseDto";
+export type { NotificationDto } from "./types/NotificationDto";
